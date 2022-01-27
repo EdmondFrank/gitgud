@@ -5,6 +5,7 @@
     "build": "node build.js"
   },
   "dependencies": {
+    "@babel/runtime": "^7.15.4",
     "@fortawesome/fontawesome-free": "^5.15.4",
     "@simonwep/pickr": "^1.8.2",
     "bulma": "^0.9.3",

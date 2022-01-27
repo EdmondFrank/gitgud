@@ -154,15 +154,11 @@
           <td class="is-fullwidth">
             <%= if commit_info do %>
               <%= live_redirect commit_message_title(commit_info.message), to: Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, oid_fmt(commit_info.oid)), class: "has-text-dark" %>
-            <% else %>
-              <span class="tag placeholder"></span>
             <% end %>
           </td>
           <td class="has-text-right has-text-dark">
             <%= if commit_info do %>
               <%= datetime_format(commit_info.timestamp, "{relative}") %>
-            <% else %>
-              <span class="tag placeholder"></span>
             <% end %>
           </td>
         </tr>

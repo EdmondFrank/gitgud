@@ -18,6 +18,8 @@ defmodule GitGud.Web.TreeBrowserLive do
 
   import GitGud.Web.CodebaseView
 
+  @tree_commits_limit 20_000
+
   #
   # Callbacks
   #
@@ -102,7 +104,9 @@ defmodule GitGud.Web.TreeBrowserLive do
 
   defp assign_tree_commits_async(socket) do
     if connected?(socket) do
-      send(self(), :assign_tree_commits)
+      if socket.assigns.stats.commits < @tree_commits_limit do
+        send(self(), :assign_tree_commits)
+      end
     end
     socket
   end
