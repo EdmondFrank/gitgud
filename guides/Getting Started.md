@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide is an introduction to [git.limo](https://github.com/almightycouch/gitgud), a Git repository web service written in Elixir.
+This guide is an introduction to [git.limo](https://github.com/edmondFrank/gitgud), a Git repository web service written in Elixir.
 
 This umbrella project is split into three applications:
 

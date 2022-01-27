@@ -48,8 +48,7 @@ defmodule GitLimo.Umbrella.Mixfile do
       main: "getting-started",
       logo: "apps/gitgud_web/assets/static/images/logo.svg",
       source_ref: "v#{@version}",
-      canonical: "https://git.limo",
-      source_url: "https://github.com/almightycouch/gitgud",
+      source_url: "https://gitee.com/edmondfrank/gitfrank",
       extras: [
         "guides/Getting Started.md",
       ],
