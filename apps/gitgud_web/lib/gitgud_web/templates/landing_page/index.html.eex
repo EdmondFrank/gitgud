@@ -11,31 +11,14 @@
           <h2 class="subtitle">A Git source code management tool powered by Elixir with easy installation & high extensibility.</h2>
 
           <div class="content">
-            <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum.</p>
+            <p>Provide one-stop development collaboration tools to help R&D teams quickly implement agile development and DevOps development methods, and achieve R&D efficiency upgradse.</p>
           </div>
 
           <a href="<%= Routes.session_path(@conn, :new) %>" class="button is-primary is-medium is-uppercase has-text-weight-bold">Get started</a>
-
-          <hr />
-
-
-          <article class="media">
-            <figure class="media-left">
-              <span class="icon has-text-danger"><i class="fa fa-heart"></i></span>
-            </figure>
-            <div class="media-content">
-              <div class="content">
-                <p class="is-size-7">
-                  <a class="has-text-dark" href="https://appsignal.com">AppSignal</a> is sponsoring this project with free error tracking, performance monitoring and metric dashboards.
-                  You can find out more at <a href="https://appsignal.com">appsignal.com</a>.
-                </p>
-              </div>
-            </div>
-          </article>
         </div>
       </div>
       <div class="column vertical-center">
-        <img class="hero-banner" src="<%= Routes.static_path(@conn, "/images/banner-circuit-right.svg") %>" alt="hero">
+        <img class="hero-banner" src="<%= Routes.static_path(@conn, "/images/world-map.svg") %>" alt="hero">
       </div>
     </div>
   </div>
