@@ -105,8 +105,8 @@ defmodule GitGud.Web.OAuth2Controller do
   #
 
   defp authorize_url!("github", params), do: OAuth2.Client.authorize_url!(GitHub.new(), params)
-  defp authorize_url!("gitlab", params), do: OAuth2.Client.authorize_url!(GitLab.new(), Keyword.merge(params, scope: "read_user emails"))
-  defp authorize_url!("gitee", params), do: OAuth2.Client.authorize_url!(Gitee.new(), Keyword.merge(params, scope: "user_info emails"))
+  defp authorize_url!("gitlab", params), do: OAuth2.Client.authorize_url!(GitLab.new(), Keyword.merge(params, scope: "read_user"))
+  defp authorize_url!("gitee", params), do: OAuth2.Client.authorize_url!(Gitee.new(), Keyword.merge(params, scope: "user_info"))
   defp authorize_url!(provider, _params) do
     raise ArgumentError, message: "Invalid OAuth2.0 provider #{inspect provider}"
   end
