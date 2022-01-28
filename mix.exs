@@ -97,6 +97,7 @@ defmodule GitLimo.Umbrella.Mixfile do
         "OAuth2.0": [
           GitGud.OAuth2.GitHub,
           GitGud.OAuth2.GitLab,
+          GitGud.OAuth2.Gitee,
           GitGud.OAuth2.Provider,
         ],
         "GraphQL": [

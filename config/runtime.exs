@@ -59,4 +59,8 @@ if config_env() == :prod do
   config :gitgud_web, GitGud.OAuth2.GitLab,
     client_id: System.get_env("OAUTH2_GITLAB_CLIENT_ID"),
     client_secret: System.get_env("OAUTH2_GITLAB_CLIENT_SECRET")
+
+  config :gitgud_web, GitGud.OAuth2.Gitee,
+    client_id: System.get_env("OAUTH2_GITEE_CLIENT_ID"),
+    client_secret: System.get_env("OAUTH2_GITEE_CLIENT_SECRET")
 end

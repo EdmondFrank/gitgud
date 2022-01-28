@@ -11,7 +11,7 @@ defmodule GitGud.Web.OAuth2Controller do
   alias GitGud.User
   alias GitGud.UserQuery
 
-  alias GitGud.OAuth2.{GitHub, GitLab, Provider}
+  alias GitGud.OAuth2.{GitHub, GitLab, Gitee, Provider}
 
   plug :ensure_authenticated when action in [:index]
   plug :put_layout, :user_settings when action in [:index]
@@ -105,7 +105,8 @@ defmodule GitGud.Web.OAuth2Controller do
   #
 
   defp authorize_url!("github", params), do: OAuth2.Client.authorize_url!(GitHub.new(), params)
-  defp authorize_url!("gitlab", params), do: OAuth2.Client.authorize_url!(GitLab.new(), Keyword.merge(params, scope: "read_user"))
+  defp authorize_url!("gitlab", params), do: OAuth2.Client.authorize_url!(GitLab.new(), Keyword.merge(params, scope: "read_user emails"))
+  defp authorize_url!("gitee", params), do: OAuth2.Client.authorize_url!(Gitee.new(), Keyword.merge(params, scope: "user_info emails"))
   defp authorize_url!(provider, _params) do
     raise ArgumentError, message: "Invalid OAuth2.0 provider #{inspect provider}"
   end
@@ -118,6 +119,7 @@ defmodule GitGud.Web.OAuth2Controller do
   end
 
   defp get_token!("gitlab", params), do: OAuth2.Client.get_token!(GitLab.new(), params)
+  defp get_token!("gitee", params), do: OAuth2.Client.get_token!(Gitee.new(), params)
   defp get_token!(provider, _params) do
     raise ArgumentError, message: "Invalid OAuth2.0 provider #{inspect provider}"
   end
@@ -137,6 +139,16 @@ defmodule GitGud.Web.OAuth2Controller do
     %{
       id: response.body["id"],
       login: response.body["username"],
+      name: response.body["name"],
+      email: response.body["email"]
+    }
+  end
+
+  defp get_user!("gitee", client) do
+    response = OAuth2.Client.get!(client, "/api/v5/user")
+    %{
+      id: response.body["id"],
+      login: response.body["login"],
       name: response.body["name"],
       email: response.body["email"]
     }

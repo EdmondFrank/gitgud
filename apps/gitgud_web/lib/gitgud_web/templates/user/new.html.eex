@@ -65,7 +65,7 @@
       <div class="buttons is-centered">
         <%= GitGud.Web.OAuth2View.signin_button(@conn, "github") %>
         <%= GitGud.Web.OAuth2View.signin_button(@conn, "gitlab") %>
-        <%= GitGud.Web.OAuth2View.signin_button(@conn, "bitbucket", disabled: true) %>
+        <%= GitGud.Web.OAuth2View.signin_button(@conn, "gitee") %>
       </div>
 
       <hr />

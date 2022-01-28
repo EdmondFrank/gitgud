@@ -391,14 +391,14 @@ textarea.textarea {
     color: #fca326;
   }
 
-  &.bitbucket {
+  &.gitee {
     color: $white-bis;
     border-color: transparent;
-    background-color: #205081;
+    background-color: #D90000;
   }
 
-  &.bitbucket-alt {
-    color: #205081;
+  &.gitee-alt {
+    color: #D90000;
   }
 }
 
