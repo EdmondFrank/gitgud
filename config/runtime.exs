@@ -30,6 +30,10 @@ if config_env() == :prod do
     System.get_env("UPLOADS_DIR") ||
     raise "environment variable UPLOADS_DIR is missing."
 
+  asset_host =
+    System.get_env("ASSET_HOST") ||
+    raise "environment variable ASSET_HOST is missing."
+
   config :gitgud, GitGud.DB,
     url: database_url,
     ssl: false,
@@ -37,7 +41,9 @@ if config_env() == :prod do
 
   config :gitgud, GitGud.RepoStorage, git_root: git_root
 
-  config :waffle, storage_dir_prefix: uploads_dir
+  config :waffle,
+    storage_dir_prefix: uploads_dir,
+    asset_host: asset_host
 
   config :gitgud, GitGud.SSHServer,
     port: String.to_integer(System.get_env("SSH_PORT") || "1022"),

@@ -54,7 +54,7 @@ RUN mix release
 FROM hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as app
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
-RUN apk add --no-cache libgit2 openssl openssh-keygen ncurses-libs
+RUN apk add --no-cache libgit2 openssl openssh-keygen ncurses-libs imagemagick
 
 WORKDIR /app
 

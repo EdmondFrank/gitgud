@@ -16,7 +16,7 @@ defmodule GitGud.Web.Endpoint do
 
   plug Plug.Static,
     at: "/uploads",
-    from: Path.expand("#{Application.get_env(:waffle, :storage_dir_prefix)}/uploads"),
+    from: "#{Application.get_env(:waffle, :storage_dir_prefix)}/uploads",
     gzip: true
 
   plug Plug.Static,
