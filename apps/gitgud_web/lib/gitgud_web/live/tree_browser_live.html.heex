@@ -187,22 +187,49 @@
   </div>
 
   <h1 class="title">Quick setup</h1>
+  <div id="quick-setup" class="quick-setup" phx-hook="QuickSetup">
+    <div class="field has-addons">
+      <div class="control"><button class="button http-clone-button is-active">HTTP</button></div>
+        <%= if @current_user do %>
+          <div class="control"><button class="button ssh-clone-button">SSH</button></div>
+        <% end %>
+      <div class="control http-clone">
+        <input class="input" type="text" value={Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) <> ".git"} readonly />
+      </div>
+      <%= if @current_user do %>
+        <div class="control ssh-clone is-hidden">
+          <%= case Keyword.get(Application.get_env(:gitgud, GitGud.SSHServer), :port, 22) do %>
+            <% 22 -> %>
+              <input class="input" type="text" value={"#{@current_user.login}@#{GitGud.Web.Endpoint.struct_url().host}:#{@repo.owner_login}/#{@repo.name}.git"} readonly />
+            <% ssh_port ->%>
+              <input class="input" type="text" value={"ssh://#{@current_user.login}@#{GitGud.Web.Endpoint.struct_url().host}:#{ssh_port}/#{@repo.owner_login}/#{@repo.name}.git"} readonly />
+          <% end %>
+        </div>
+      <% end %>
+      <div class="control">
+        <button class="button clipboard-button tooltip" data-tooltip="Copy to clipboard">
+          <span class="icon">
+            <i class="fa fa-clipboard"></i>
+          </span>
+        </button>
+      </div>
+    </div>
+    <div class="content">
+      <p>create a new repository on the command line</p>
+      <pre>
+      echo "# foobar" >> README.md
+      git init
+      git add README.md
+      git commit -m "first commit"
+      git remote add origin <span class="repo-url"><%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git</span>
+      git push -u origin master
+      </pre>
 
-  <div class="content">
-    <p>create a new repository on the command line</p>
-    <pre>
-    echo "# foobar" >> README.md
-    git init
-    git add README.md
-    git commit -m "first commit"
-    git remote add origin <%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git
-    git push -u origin master
-    </pre>
-
-    <p>or push an existing repository from the command line</p>
-    <pre>
-    git remote add origin <%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git
-    git push -u origin master
-    </pre>
+      <p>or push an existing repository from the command line</p>
+      <pre>
+      git remote add origin <span class="repo-url"><%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git</span>
+      git push -u origin master
+      </pre>
+    </div>
   </div>
 <% end %>

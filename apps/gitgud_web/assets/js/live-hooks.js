@@ -1,6 +1,7 @@
 import hljs from "highlight.js"
 
 import cloneRepo from "./hooks/clone-repo"
+import quickSetup from "./hooks/quick-setup"
 import commitOidToClipBoard from "./hooks/commit-oid-to-clipboard"
 import treeBreadcrumb from "./hooks/tree-breadcrumb"
 
@@ -94,6 +95,10 @@ Hooks.BlobContentTable = {
 
 Hooks.CloneRepo = {
   mounted() { cloneRepo() }
+}
+
+Hooks.QuickSetup = {
+  mounted() { quickSetup() }
 }
 
 Hooks.CommitDiff = {
