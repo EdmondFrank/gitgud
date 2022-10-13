@@ -3,7 +3,7 @@ defmodule GitGud.Web.Router do
   use GitGud.Web, :router
 
   pipeline :browser do
-    plug :accepts, ["html"]
+    plug :accepts, ["html", "json"]
     plug :fetch_session
     plug :fetch_live_flash
     plug :authenticate_session
@@ -96,6 +96,7 @@ defmodule GitGud.Web.Router do
         live "/commit/:oid", CommitDiffLive, :commit, as: :codebase
 
         get "/branches", CodebaseController, :branches
+        post "/branches", CodebaseController, :create_branch
         get "/tags", CodebaseController, :tags
 
         get "/new/:revision/*path", CodebaseController, :new

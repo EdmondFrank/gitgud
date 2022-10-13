@@ -12,6 +12,7 @@
     "bulma-badge": "^3.0.1",
     "bulma-divider": "^0.2.0",
     "bulma-timeline": "^3.0.4",
+    "bulma-toast": "^2.4.1",
     "bulma-tooltip": "^3.0.2",
     "highlight.js": "^11.2.0",
     "phoenix": "file:../../../deps/phoenix",

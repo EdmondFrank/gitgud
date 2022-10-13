@@ -1,4 +1,57 @@
-<h2 class="subtitle">Branches</h2>
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">Branches</h2>
+    </div>
+  </div>
+  <%= if verified?(@conn) do %>
+    <div class="level-right">
+      <div class="level-item">
+        <%= if verified?(@current_user) do %>
+          <a class="button is-small is-success js-modal-trigger" data-target="modal-create-branch"> + New Branch </a>
+        <% else %>
+          <p class="button tooltip is-small is-success" data-tooltip="Verify your account" disabled> + New Branch </p>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<div id="modal-create-branch" class="modal">
+  <div class="modal-background"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Create a new branch</p>
+    </header>
+    <section class="modal-card-body">
+      <div class="field">
+        <label class="label">Branch Name</label>
+        <div class="control">
+          <input class="input" type="text" placeholder="Text input">
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Start from</label>
+        <div class="control">
+          <div class="select">
+            <select>
+              <option><%= @head.name %></option>
+              <%= unless Enum.empty?(@page.slice) do %>
+                <%= for {branch, _, _, {_, _}} <- @page.slice do %>
+                  <option><%= branch %></option>
+                <% end %>
+              <% end %>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="modal-card-foot field is-grouped is-grouped-right">
+      <button class="button is-success">Submit</button>
+      <button class="button is-cancel">Cancel</button>
+    </footer>
+  </div>
+</div>
 
 <table class="table branches-table is-fullwidth">
   <thead>
@@ -65,3 +118,91 @@
 </table>
 
 <%= pagination(@conn, @page) %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Functions to open and close a modal
+    function openModal($el) {
+      $el.classList.add('is-active');
+    }
+
+    function closeModal($el) {
+      $el.classList.remove('is-active');
+    }
+
+    function closeAllModals() {
+      (document.querySelectorAll('.modal') || []).forEach(($modal) => {
+        closeModal($modal);
+      });
+    }
+
+    // Add a click event on buttons to open a specific modal
+    (document.querySelectorAll('.js-modal-trigger') || []).forEach(($trigger) => {
+      const modal = $trigger.dataset.target;
+      const $target = document.getElementById(modal);
+
+      $trigger.addEventListener('click', () => {
+        openModal($target);
+    });
+  });
+
+    // Add a click event on various child elements to close the parent modal
+    (document.querySelectorAll('.modal-background, .modal-card-foot .is-cancel') || []).forEach(($close) => {
+      const $target = $close.closest('.modal');
+      $close.addEventListener('click', () => {
+        closeModal($target);
+      });
+    });
+
+    (document.querySelectorAll('.modal-card-foot .is-success') || []).forEach(($submit) => {
+      const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      const branchUrl = '<%= Routes.codebase_path(@conn, :create_branch, @repo.owner_login, @repo) %>';
+      const $target = $submit.closest('.modal');
+      $submit.addEventListener('click', () => {
+        const branchName = document.querySelector('.modal input').value;
+        const from = document.querySelector('.modal select').value;
+        fetch(`${branchUrl}?_format=json`, {
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token
+          },
+          body: JSON.stringify({
+            branch_name: branchName,
+            start: from
+          })
+        })
+          .then((response) => {
+            if (response.status >= 200 && response.status <= 299) {
+              return response.json();
+            } else {
+              throw response;
+            }
+          })
+          .then((data) => {
+            closeModal($target);
+            window.toast({
+              message: `branch '${branchName}' create successfully`,
+              type: 'is-success',
+              pauseOnHover: true,
+            });
+            window.location.replace(branchUrl);
+          })
+          .catch((error) => {
+            if ((typeof error?.json === 'function')) {
+              error.json().then((data) => {
+                const message = data ? `reason: ${data.message}` : ''
+                window.toast({
+                  message: `failed to create branch '${branchName}' ${message}`,
+                  type: 'is-danger',
+                  pauseOnHover: true,
+                });
+              });
+            } else {
+              console.log(error);
+            }
+          });
+      });
+    });
+});
+</script>

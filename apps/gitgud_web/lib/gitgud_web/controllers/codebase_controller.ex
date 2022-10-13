@@ -267,6 +267,26 @@ defmodule GitGud.Web.CodebaseController do
   end
 
   @doc """
+  Create a new branch from existing branches
+  """
+  @spec create_branch(Plug.Conn.t(), map) :: Plug.Conn.t()
+  def create_branch(conn, %{"user_login" => user_login, "repo_name" => repo_name, "start" => start, "branch_name" => branch_name} = _params) do
+    if repo = RepoQuery.user_repo(user_login, repo_name, viewer: current_user(conn)) do
+      if authorized?(conn, repo, :push) do
+        with {:ok, agent} <- GitRepo.get_agent(repo) do
+          with {:ok, branch} <- validate_new_branch_name(agent, branch_name),
+               {:ok, reference} <- GitAgent.reference(agent, start),
+                 :ok <- GitAgent.reference_create(agent, "refs/heads/#{branch}", :oid, reference.oid) do
+            conn
+            |> Plug.Conn.put_resp_header("Content-Type", "application/json; charset=utf-8")
+            |> Plug.Conn.send_resp(200, Jason.encode!(%{message: "success"}))
+          end
+        end
+      end || {:error, :forbidden}
+    end || {:error, :not_found}
+  end
+
+  @doc """
   Renders all branches of a repository.
   """
   @spec branches(Plug.Conn.t, map) :: Plug.Conn.t
@@ -318,6 +338,24 @@ defmodule GitGud.Web.CodebaseController do
   #
   # Helpers
   #
+
+  defp validate_new_branch_name(agent, branch_name) do
+    cond do
+      String.trim(branch_name) == "" ->
+        {:error, "branch name is empty"}
+      String.trim(branch_name) == "HEAD" ->
+        {:error, "branch name can not be HEAD"}
+      Enum.any?(["refs/heads/", "refs/remotes/", "-"], &(String.starts_with?(branch_name, &1))) ->
+        {:error, "branch name is invalid"}
+      true ->
+        case GitAgent.branch(agent, branch_name) do
+          {:error, _} ->
+            {:ok, branch_name}
+          _ ->
+            {:error, "branch name exists"}
+        end
+    end
+  end
 
   defp blob_changeset(blob, params) do
     types = %{name: :string, content: :string}
