@@ -9,6 +9,13 @@ services:
     env_file: .env
     volumes:
       - /home/ubuntu/data:/data
+      - /home/ubuntu/ssh-keys:/app/ssh-keys:ro
     ports:
       - "4000:4000"
       - "1022:1022"
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.21.0.0/24"

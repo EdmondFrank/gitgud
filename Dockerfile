@@ -63,8 +63,8 @@ RUN chown nobody:nobody /app
 COPY --from=build --chown=nobody:nobody /build/_build/prod/rel/git_limo ./
 COPY entrypoint.sh ./
 
-RUN mkdir ssh-keys
-RUN yes y | ssh-keygen -m PEM -t rsa -N "" -f ssh-keys/ssh_host_rsa_key
+# RUN mkdir ssh-keys
+# RUN yes y | ssh-keygen -m PEM -t rsa -N "" -f ssh-keys/ssh_host_rsa_key
 
 EXPOSE 4000
 EXPOSE 1022
