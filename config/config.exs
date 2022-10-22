@@ -10,9 +10,20 @@ for config <- Path.wildcard(Path.expand("../apps/*/config/config.exs", __DIR__))
 end
 
 # Configures Elixir's Logger
-config :logger, :console,
+config :logger,
+  backends: [:console, {LoggerFileBackend, :error_log}, {LoggerFileBackend, :application_log}],
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
+
+
+config :logger, :application_log,
+  path: "log/application.log",
+  level: :info
+
+config :logger, :error_log,
+  path: "log/error.log",
+  level: :error
+
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

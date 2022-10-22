@@ -21,7 +21,7 @@ defmodule GitGud.Web.Mixfile do
   def application do
     [
       mod: {GitGud.Web.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :logger_file_backend]
     ]
   end
 
@@ -51,6 +51,7 @@ defmodule GitGud.Web.Mixfile do
       {:phoenix_live_reload, "~> 1.3", only: :dev},
       {:phoenix_live_view, "~> 0.18"},
       {:phoenix_pubsub, "~> 2.1"},
+      {:logger_file_backend, "~> 0.0.13"},
       {:plug, "~> 1.13"},
       {:plug_cowboy, "~> 2.5"},
       {:timex, "~> 3.7"},
