@@ -40,6 +40,7 @@ defmodule GitGud.Web.Mixfile do
       {:bamboo, "~> 2.2"},
       {:bamboo_phoenix, "~> 1.0"},
       {:earmark, "~> 1.4"},
+      {:cmark, "~> 0.10.0"},
       {:floki, "~> 0.33", only: :test},
       {:gettext, "~> 0.20"},
       {:gitgud, in_umbrella: true},
