@@ -58,6 +58,24 @@ defmodule GitGud.Account do
   end
 
   @doc """
+  Update user avatar.
+  """
+  @spec update_user_avatar(User.t, map) :: {:ok, t} | {:error, Ecto.Changeset.t}
+  def update_user_avatar(%User{} = user, params \\ %{}) do
+    user
+    |> User.avatar_changeset(params)
+    |> DB.update()
+  end
+
+  @doc """
+  Change user avatar.
+  """
+  @spec change_user_avatar(User.t) :: Ecto.Changeset.t
+  def change_user_avatar(%User{} = user) do
+    User.avatar_changeset(user, %{})
+  end
+
+  @doc """
   Returns a changeset for the given `params`.
   """
   @spec changeset(t, map) :: Ecto.Changeset.t

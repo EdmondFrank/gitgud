@@ -67,6 +67,42 @@
     <% end %>
   </div>
   <div class="column is-one-third has-text-centered">
-    <a href="https://gravatar.com"><%= gravatar(@user, size: 150) %></a>
+    <%= if @user.avatar_url do %>
+      <%= user_avatar(@user, size: 150) %>
+    <% end %>
+    <%= form_for @avatar_changeset, Routes.user_path(@conn, :update_avatar), [multipart: true], fn f -> %>
+      <%= if @avatar_changeset.action do %>
+      <div class="alert alert-danger">
+        <p>Oops, something went wrong! Please check the errors below.</p>
+      </div>
+      <% end %>
+
+      <div id="avatar-form" class="form-group file is-centered">
+        <span class="file-icon">
+          <i class="fas fa-upload"></i>
+        </span>
+        <%= label f, :avatar_url, "Click here choose ...", class: "control-label file-label" %>
+        <%= file_input f, :avatar_url, class: "form-control file-input" %>
+        <%= error_tag f, :avatar_url %>
+      </div>
+      <span id="avatar-file-name">
+        No file uploaded
+      </span>
+      <div id="avatar-submit">
+        <%= submit "Update avatar", class: "button is-link", disabled: true %>
+      </div>
+    <% end %>
   </div>
 </div>
+
+<script>
+  const fileInput = document.querySelector('#avatar-form input[type=file]');
+  fileInput.onchange = () => {
+    if (fileInput.files.length > 0) {
+      const fileName = document.querySelector('#avatar-file-name');
+      const fileSubmit = document.querySelector('#avatar-submit button');
+      fileName.textContent = fileInput.files[0].name;
+      fileSubmit.disabled = false;
+    }
+  }
+</script>

@@ -109,6 +109,27 @@ defmodule GitGud.Web.UserController do
   end
 
   @doc """
+  Updates an avatar.
+  """
+  @spec update_avatar(Plug.Conn.t, map) :: Plug.Conn.t
+  def update_avatar(conn, %{"user" => user_params}) do
+    user = current_user(conn)
+    case Account.update_user_avatar(user, user_params) do
+      {:ok, _user} ->
+        conn
+        |> put_flash(:info, "Avatar updated successfully.")
+        |> redirect(to: Routes.user_path(conn, :edit_profile))
+
+      {:error, changeset} ->
+        render(conn, "edit_profile.html", avatar_changeset: changeset)
+    end
+  end
+
+  def update_avatar(conn, _invalid_params) do
+    update_avatar(conn, %{"user" => %{}})
+  end
+
+  @doc """
   Renders a password edit form.
   """
   @spec edit_password(Plug.Conn.t, map) :: Plug.Conn.t

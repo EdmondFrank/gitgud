@@ -26,12 +26,18 @@ if config_env() == :prod do
     System.get_env("SSH_HOST_KEY_DIR") ||
     raise "environment variable SSH_HOST_KEY_DIR is missing."
 
+  uploads_dir =
+    System.get_env("UPLOADS_DIR") ||
+    raise "environment variable UPLOADS_DIR is missing."
+
   config :gitgud, GitGud.DB,
     url: database_url,
     ssl: false,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 
   config :gitgud, GitGud.RepoStorage, git_root: git_root
+
+  config :waffle, storage_dir_prefix: uploads_dir
 
   config :gitgud, GitGud.SSHServer,
     port: String.to_integer(System.get_env("SSH_PORT") || "1022"),

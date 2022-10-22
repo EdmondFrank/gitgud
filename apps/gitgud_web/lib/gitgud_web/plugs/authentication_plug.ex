@@ -124,8 +124,12 @@ defmodule GitGud.Web.AuthenticationPlug do
   end
 
   defp authenticate_user(conn, user_id) do
-    if user = UserQuery.by_id(user_id),
-      do: assign(conn, :current_user, user),
-    else: conn
+    if user = UserQuery.by_id(user_id) do
+      conn
+      |> assign(:current_user, user)
+      |> assign(:avatar_changeset, GitGud.Account.change_user_avatar(user))
+    else
+      conn
+    end
   end
 end

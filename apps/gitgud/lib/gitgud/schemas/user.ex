@@ -6,6 +6,7 @@ defmodule GitGud.User do
   """
 
   use Ecto.Schema
+  use Waffle.Ecto.Schema
 
   import Ecto.Changeset
 
@@ -30,7 +31,7 @@ defmodule GitGud.User do
     field :bio, :string
     field :location, :string
     field :website_url, :string
-    field :avatar_url, :string
+    field :avatar_url, GitGud.Uploaders.Avatar.Type
     has_many :ssh_keys, SSHKey, on_delete: :delete_all
     has_many :gpg_keys, GPGKey, on_delete: :delete_all
     timestamps()
@@ -184,6 +185,16 @@ defmodule GitGud.User do
   end
 
   @doc """
+  Returns a changeset for the given `avatar`.
+  """
+  @spec avatar_changeset(t, map) :: Ecto.Changeset.t
+  def avatar_changeset(%__MODULE__{} = user, params \\ %{}) do
+    user
+    |> cast(params, [])
+    |> cast_attachments(params, [:avatar_url])
+  end
+
+  @doc """
   Returns a changeset for the given `email`.
   """
   @spec email_changeset(t, :primary_email | :public_email, Email.t) :: Ecto.Changeset.t
@@ -191,7 +202,7 @@ defmodule GitGud.User do
   def email_changeset(%__MODULE__{} = user, :primary_email, email) do
     user
     |> struct(primary_email: nil)
-    |> change(avatar_url: gravatar_url(email))
+    |> change(avatar_url: nil)
     |> put_assoc(:primary_email, email)
   end
 

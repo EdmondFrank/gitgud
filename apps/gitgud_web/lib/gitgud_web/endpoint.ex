@@ -15,6 +15,11 @@ defmodule GitGud.Web.Endpoint do
   socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_opts]]
 
   plug Plug.Static,
+    at: "/uploads",
+    from: Path.expand("#{Application.get_env(:waffle, :storage_dir_prefix)}/uploads"),
+    gzip: true
+
+  plug Plug.Static,
     at: "/", from: :gitgud_web, gzip: false,
     only: ~w(assets css fonts images js),
     only_matching: ~w(favicon apple-touch-icon icon-192 icon-512 manifest robots)

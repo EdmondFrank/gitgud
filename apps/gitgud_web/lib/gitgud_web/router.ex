@@ -57,6 +57,8 @@ defmodule GitGud.Web.Router do
     get "/settings/profile", UserController, :edit_profile
     put "/settings/profile", UserController, :update_profile
 
+    put "/settings/profile/update_avatar", UserController, :update_avatar
+
     get "/settings/password", UserController, :edit_password
     put "/settings/password", UserController, :update_password
 

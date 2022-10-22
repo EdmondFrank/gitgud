@@ -8,8 +8,8 @@
   <% Map.has_key?(@commit_info.author, :id) && Map.has_key?(@commit_info.committer, :id) -> %>
     <div class="tag user">
       <div class="avatar-stack">
-        <a href="<%= Routes.user_path(@conn, :show, @commit_info.author) %>"><%= gravatar(@commit_info.author, size: 24) %></a>
-        <a href="<%= Routes.user_path(@conn, :show, @commit_info.committer) %>"><%= gravatar(@commit_info.committer, size: 24) %></a>
+        <a href="<%= Routes.user_path(@conn, :show, @commit_info.author) %>"><%= user_avatar(@commit_info.author, size: 24) %></a>
+        <a href="<%= Routes.user_path(@conn, :show, @commit_info.committer) %>"><%= user_avatar(@commit_info.committer, size: 24) %></a>
       </div>
       <a href="<%= Routes.user_path(@conn, :show, @commit_info.author) %>"><%= @commit_info.author.login %></a>
     </div>

@@ -18,7 +18,7 @@
         <div class="box-content">
           <div class="committer">
             <figure class="is-pulled-left">
-              <a href="<%= Routes.user_path(@conn, :show, @commit_info.committer) %>"><%= gravatar(@commit_info.committer, size: 36) %></a>
+              <a href="<%= Routes.user_path(@conn, :show, @commit_info.committer) %>"><%= user_avatar(@commit_info.committer, size: 36) %></a>
             </figure>
             <ul>
               <li><strong><%= @commit_info.committer.name %></strong></li>

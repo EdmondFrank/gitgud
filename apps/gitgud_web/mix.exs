@@ -52,6 +52,8 @@ defmodule GitGud.Web.Mixfile do
       {:phoenix_live_view, "~> 0.18"},
       {:phoenix_pubsub, "~> 2.1"},
       {:logger_file_backend, "~> 0.0.13"},
+      {:waffle, "~> 1.1"},
+      {:waffle_ecto, "~> 0.0"},
       {:plug, "~> 1.13"},
       {:plug_cowboy, "~> 2.5"},
       {:timex, "~> 3.7"},

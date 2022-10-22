@@ -1,13 +1,13 @@
 import Phoenix.HTML, only: [raw: 1]
 
-import GitGud.Web.Gravatar, only: [gravatar: 2]
+import GitGud.Web.Gravatar, only: [user_avatar: 2]
 import GitGud.Web.GPGKeyView, only: [format_key_id: 1]
 
 alias GitGud.{User, Repo, Issue, Email, GPGKey}
 
 defimpl Phoenix.HTML.Safe, for: User do
   def to_iodata(user) do
-    Phoenix.HTML.Safe.to_iodata([gravatar(user, size: 24), raw(user.login)])
+    Phoenix.HTML.Safe.to_iodata([user_avatar(user, size: 24), raw(user.login)])
   end
 end
 
