@@ -287,6 +287,26 @@ defmodule GitGud.Web.CodebaseController do
   end
 
   @doc """
+  Renders raw data of repository blob.
+  """
+  @spec raw(Plug.Conn.t, map) :: Plug.Conn.t
+  def raw(conn, %{"user_login" => user_login, "repo_name" => repo_name, "revision" => revision, "path" => blob_path} = _params) do
+    unless Enum.empty?(blob_path) do
+      user = current_user(conn)
+      if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
+        if authorized?(user, repo, :push) do
+          with {:ok, agent} <- GitRepo.get_agent(repo),
+               {:ok, {_reference, _commit, blob_content, _blob_size}} <- GitAgent.transaction(agent, &resolve_blob(&1, revision, blob_path)) do
+            conn
+            |> Plug.Conn.put_resp_header("Content-Type", MIME.from_path(blob_path))
+            |> Plug.Conn.send_resp(200, blob_content)
+          end
+        end || {:error, :forbidden}
+      end
+    end || {:error, :not_found}
+  end
+
+  @doc """
   Renders all branches of a repository.
   """
   @spec branches(Plug.Conn.t, map) :: Plug.Conn.t

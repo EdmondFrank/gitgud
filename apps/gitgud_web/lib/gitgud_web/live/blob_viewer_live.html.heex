@@ -75,20 +75,26 @@
       <% end %>
     </div>
   </header>
-
-  <div class="card-content">
-    <table id="blob-content" class="table blob-table" data-lang={highlight_language_from_path(Path.join(@blob_path))} phx-hook="BlobContentTable">
-      <tbody>
-        <%= for {line_content, line_no} <- Enum.with_index(String.split(@blob_content, "\n"), 1) do %>
-          <tr>
-            <td class="line-no"><%= line_no %></td>
-            <td class="code">
-              <div class="code-inner"><%= line_content %></div>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+  
+  <%= if @blob_content do %>
+    <div class="card-content">
+      <table id="blob-content" class="table blob-table" data-lang={highlight_language_from_path(Path.join(@blob_path))} phx-hook="BlobContentTable">
+        <tbody>
+          <%= for {line_content, line_no} <- Enum.with_index(String.split(@blob_content, "\n"), 1) do %>
+            <tr>
+              <td class="line-no"><%= line_no %></td>
+              <td class="code">
+                <div class="code-inner"><%= line_content %></div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="card has-text-centered">
+      <%= link "Download (#{fmt_size(@blob_size)})", to: @raw_link, target: "_blank", class: "button is-link is-inverted has-text-weight-bold" %>
+    </div>
+  <% end %>
 </div>
 

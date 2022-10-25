@@ -67,7 +67,7 @@ defmodule GitGud.Web.BlobViewerLive do
   end
 
   defp assign_blob!(socket, params) do
-    assign(socket, resolve_revision_blob!(socket.assigns.agent, params["revision"], params["path"]))
+    assign(socket, resolve_revision_blob!(socket, params["revision"], params["path"]))
   end
 
   defp assign_blob_commit!(socket) do
@@ -85,10 +85,14 @@ defmodule GitGud.Web.BlobViewerLive do
     assign(socket, :page_title, GitGud.Web.CodebaseView.title(socket.assigns[:live_action], socket.assigns))
   end
 
-  defp resolve_revision_blob!(agent, revision, blob_path) do
-    case GitAgent.transaction(agent, &resolve_revision_blob(&1, revision, blob_path)) do
+  defp resolve_revision_blob!(socket, revision, blob_path) do
+    case GitAgent.transaction(socket.assigns.agent, &resolve_revision_blob(&1, revision, blob_path)) do
       {:ok, {ref, commit, blob_content, blob_size}} ->
-        %{revision: ref || commit, commit: commit, blob_content: blob_content, blob_size: blob_size}
+        raw_link = Routes.codebase_path(socket, :raw, socket.assigns.repo.owner_login, socket.assigns.repo.name, revision, blob_path)
+        blob_info = %{revision: ref || commit, commit: commit, blob_content: blob_content, blob_size: blob_size, raw_link: raw_link}
+        if String.valid?(blob_content),
+          do: blob_info,
+          else: %{blob_info|blob_content: nil}
       {:error, error} ->
         raise error
     end

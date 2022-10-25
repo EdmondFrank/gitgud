@@ -99,6 +99,7 @@ defmodule GitGud.Web.Router do
         post "/branches", CodebaseController, :create_branch
         get "/tags", CodebaseController, :tags
 
+        get "/raw/:revision/*path", CodebaseController, :raw
         get "/new/:revision/*path", CodebaseController, :new
         get "/edit/:revision/*path", CodebaseController, :edit
         get "/delete/:revision/*path", CodebaseController, :confirm_delete

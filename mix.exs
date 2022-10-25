@@ -121,6 +121,7 @@ defmodule GitLimo.Umbrella.Mixfile do
           GitGud.Web.CommentLive,
           GitGud.Web.CommitDiffLive,
           GitGud.Web.CommitLineReviewLive,
+          GitGud.Web.FileFormatter,
           GitGud.Web.DateTimeFormatter,
           GitGud.Web.EmailController,
           GitGud.Web.Emoji,

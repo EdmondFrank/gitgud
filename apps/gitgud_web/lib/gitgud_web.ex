@@ -141,6 +141,7 @@ defmodule GitGud.Web do
 
       import GitGud.GraphQL.Schema, only: [to_relay_id: 1, to_relay_id: 2]
 
+      import GitGud.Web.FileFormatter
       import GitGud.Web.DateTimeFormatter
       import GitGud.Web.ErrorHelpers
       import GitGud.Web.Gettext
