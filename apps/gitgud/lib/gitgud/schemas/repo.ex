@@ -58,6 +58,13 @@ defmodule GitGud.Repo do
     "invalid" => "e6e6e6"
   }
 
+  @earliest ~N[1970-01-01 00:00:00]
+
+  @doc """
+  Return earliest time instead of nil.
+  """
+  def earliest, do: @earliest
+
   @doc """
   Creates and initialize a new repository.
 

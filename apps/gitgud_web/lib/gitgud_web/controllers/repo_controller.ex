@@ -30,7 +30,7 @@ defmodule GitGud.Web.RepoController do
         contributors: RepoQuery.count_contributors(user.repos),
         issues: IssueQuery.count_repo_issues(user.repos, status: :open)
       }
-      render(conn, "index.html", user: user, stats: Map.new(user.repos, &{&1.id, stats(&1, batch_stats)}))
+      render(conn, "index.html", user: user, stats: Map.new(user.repos, &{&1.id, stats(&1, batch_stats)}), earliest: Repo.earliest)
     end || {:error, :not_found}
   end
 
