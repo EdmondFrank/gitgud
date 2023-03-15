@@ -81,6 +81,22 @@ defmodule GitGud.UserQuery do
     DB.all(DBQueryable.query({__MODULE__, :search_query}, [input, threshold], opts))
   end
 
+  @doc """
+  Returns users count of entire site.
+  """
+  @spec count(keyword) :: non_neg_integer()
+  def count(opts \\ []) do
+    DB.one(DBQueryable.query({__MODULE__, :count_users_query}, [], opts))
+  end
+
+  @doc """
+  Returns first user inserted_at.
+  """
+  @spec first_at() :: NaiveDateTime
+  def first_at() do
+    DB.one(query(:users_query_first)).inserted_at
+  end
+
   #
   # Callbacks
   #
@@ -121,6 +137,14 @@ defmodule GitGud.UserQuery do
 
   def query(:search_query, [input, threshold]) do
     from(u in User, as: :user, where: fragment("similarity(?, ?) > ?", u.login, ^input, ^threshold) and not is_nil(u.primary_email_id), order_by: fragment("similarity(?, ?) DESC", u.login, ^input))
+  end
+
+  def query(:count_users_query, _opts) do
+    from(u in User, select: count(u.id))
+  end
+
+  def query(:users_query_first) do
+    from(u in User, as: :user, join: e in assoc(u, :emails), where: e.verified == true, order_by: [asc: :inserted_at], limit: 1)
   end
 
   @impl true

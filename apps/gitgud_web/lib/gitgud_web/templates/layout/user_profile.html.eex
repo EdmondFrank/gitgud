@@ -39,6 +39,24 @@
         <% end %>
       </ul>
 
+      <hr />
+      <div class="site-stats column">
+        <h3 class="title is-5">Site Stats</h3>
+        <ul>
+          <li>
+            <span class="icon has-text-grey">
+              <i class="fa fa-users"></i>
+            </span>
+            <%= @site_stats.users %> Users registered
+          </li>
+          <li>
+            <span class="icon has-text-grey">
+              <i class="fa fa-clock"></i>
+            </span>
+            Created since <%= datetime_format(@site_stats.first_at, "{relative}") %>
+          </li>
+        </ul>
+      </div>
     </div>
     <div class="column">
       <div class="tabs">
