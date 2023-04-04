@@ -174,6 +174,8 @@ defmodule GitGud.SSHServer do
 
   defp authorized?(user, repo, "git-upload-pack"), do: Authorization.authorized?(user, repo, :pull)
   defp authorized?(user, repo, "git-receive-pack"), do: Authorization.authorized?(user, repo, :push)
+  defp authorized?(user, repo, "git-lfs-transfer"), do: Authorization.authorized?(user, repo, :push)
+  defp authorized?(user, repo, "git-lfs-authenticate"), do: Authorization.authorized?(user, repo, :push)
 
   defp daemon_opts(system_dir) do
     [key_cb: {__MODULE__, []},

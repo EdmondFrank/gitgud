@@ -67,11 +67,15 @@ defmodule GitRekt.WireProtocol.ReceivePack do
   def next(%__MODULE__{state: :update_req} = handle, lines) do
     case GitAgent.odb_writepack(handle.agent) do
       {:ok, writepack} ->
-        {_shallows, lines} = Enum.split_while(lines, &match?({:shallow, _oid}, &1))
-        {cmds, lines} = Enum.split_while(lines, &is_binary/1)
-        {caps, cmds} = parse_caps(cmds)
-        [:flush|lines] = lines
-        {%{handle|state: :pack, caps: caps, cmds: parse_cmds(cmds), writepack: writepack}, lines, []}
+        {shallows, lines} = Enum.split_while(lines, &match?({:shallow, _oid}, &1))
+        if Enum.empty?(shallows) do
+          {cmds, lines} = Enum.split_while(lines, &is_binary/1)
+          {caps, cmds} = parse_caps(cmds)
+          [:flush|lines] = lines
+          {%{handle|state: :pack, caps: caps, cmds: parse_cmds(cmds), writepack: writepack}, lines, []}
+        else
+          raise "shallow update not allowed"
+        end
       {:error, error} ->
         raise error
     end
