@@ -278,8 +278,8 @@ defmodule GitGud.Web.CodebaseController do
                {:ok, reference} <- GitAgent.reference(agent, start),
                  :ok <- GitAgent.reference_create(agent, "refs/heads/#{branch}", :oid, reference.oid) do
             conn
-            |> Plug.Conn.put_resp_header("Content-Type", "application/json; charset=utf-8")
-            |> Plug.Conn.send_resp(200, Jason.encode!(%{message: "success"}))
+            |> put_resp_header("Content-Type", "application/json; charset=utf-8")
+            |> send_resp(:ok, Jason.encode!(%{message: "success"}))
           end
         end
       end || {:error, :forbidden}
@@ -294,12 +294,12 @@ defmodule GitGud.Web.CodebaseController do
     unless Enum.empty?(blob_path) do
       user = current_user(conn)
       if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
-        if authorized?(user, repo, :push) do
+        if authorized?(user, repo, :pull) do
           with {:ok, agent} <- GitRepo.get_agent(repo),
                {:ok, {_reference, _commit, blob_content, _blob_size}} <- GitAgent.transaction(agent, &resolve_blob(&1, revision, blob_path)) do
             conn
-            |> Plug.Conn.put_resp_header("Content-Type", MIME.from_path(blob_path))
-            |> Plug.Conn.send_resp(200, blob_content)
+            |> put_resp_header("Content-Type", MIME.from_path(blob_path))
+            |> send_resp(:ok, blob_content)
           end
         end || {:error, :forbidden}
       end
