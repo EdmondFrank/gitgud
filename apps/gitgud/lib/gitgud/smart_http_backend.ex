@@ -59,6 +59,11 @@ defmodule GitGud.SmartHTTPBackend do
 
   alias GitGud.Authorization
 
+  alias GitGud.MetaDB
+  alias GitGud.ContentStore
+
+  alias GitGud.Web.Router.Helpers, as: Routes
+
   plug :basic_authentication
 
   @doc """
@@ -102,6 +107,77 @@ defmodule GitGud.SmartHTTPBackend do
     end
   end
 
+  @doc """
+  Process `verify` requests.
+  """
+  @spec verify(Plug.Conn.t, keyword) :: Plug.Conn.t
+  def verify(conn, _opts) do
+    service = "git-lfs-transfer-verify"
+    case fetch_user_repo(conn, service) do
+      {:ok, _repo} ->
+        result = %{our: [], theirs: [], next_cursor: nil, message: nil}
+        conn
+        |> put_resp_content_type("application/vnd.git-lfs+json")
+        |> send_resp(:ok, Jason.encode!(result))
+      {:error, status_error} ->
+        halt_with_error(conn, status_error)
+    end
+  end
+
+  @doc """
+  Process `batch` requests.
+  """
+  @spec batch(Plug.Conn.t, keyword) :: Plug.Conn.t
+  def batch(conn, _opts) do
+    operation = conn.params["operation"]
+    user_login = conn.path_params["user_login"]
+    repo_name = conn.path_params["repo_name"]
+    service = "git-lfs-transfer-#{operation}"
+    case fetch_user_repo(conn, service) do
+      {:ok, _repo} ->
+        objects = conn.params["objects"] || []
+        response_objects = Enum.map(objects, &process_object(conn, operation, user_login, repo_name, &1))
+        result = %{objects: response_objects}
+        conn
+        |> put_resp_content_type("application/vnd.git-lfs+json")
+        |> send_resp(:ok, Jason.encode!(result))
+    end
+  end
+
+
+  def download_object(conn, _opts) do
+    oid = conn.params["oid"]
+    case MetaDB.get({:objects, oid}) do
+      nil ->
+        halt_with_error(conn, :not_found)
+      meta ->
+        case ContentStore.get_path(meta) do
+          {:ok, path} ->
+            send_file(conn, :ok, path)
+          {:error, reason} ->
+            halt_with_error(conn, {:error, reason})
+        end
+    end
+  end
+
+
+  def upload_object(conn, _opts) do
+    {:done, body, conn} = get_full_plug_request_body(conn)
+    oid = conn.params["oid"]
+    case MetaDB.get({:objects, oid}) do
+      nil ->
+        halt_with_error(conn, :not_found)
+      meta ->
+        case ContentStore.put(meta, body) do
+          :ok ->
+            send_resp(conn, :ok, "OK")
+          {:error, reason} ->
+            IO.inspect(reason)
+            halt_with_error(conn, {:error, reason})
+        end
+    end
+  end
+
   #
   # Callbacks
   #
@@ -130,7 +206,8 @@ defmodule GitGud.SmartHTTPBackend do
         {:error, :not_found}
       !String.ends_with?(repo_name, ".git") ->
         {:error, :not_found}
-      service not in ["git-receive-pack", "git-upload-pack"] ->
+        service not in ["git-receive-pack", "git-upload-pack",
+                         "git-lfs-transfer-verify", "git-lfs-transfer-download", "git-lfs-transfer-upload"] ->
         {:error, :bad_request}
       repo = RepoQuery.user_repo(user_login, String.slice(repo_name, 0..-5), viewer: conn.assigns[:current_user]) ->
         cond do
@@ -150,6 +227,9 @@ defmodule GitGud.SmartHTTPBackend do
 
   defp authorized?(conn, repo, "git-upload-pack"), do: authorized?(conn, repo, :pull)
   defp authorized?(conn, repo, "git-receive-pack"), do: authorized?(conn, repo, :push)
+  defp authorized?(conn, repo, "git-lfs-transfer-verify"), do: authorized?(conn, repo, :push)
+  defp authorized?(conn, repo, "git-lfs-transfer-upload"), do: authorized?(conn, repo, :push)
+  defp authorized?(conn, repo, "git-lfs-transfer-download"), do: authorized?(conn, repo, :pull)
   defp authorized?(conn, repo, action), do: Authorization.authorized?(conn.assigns[:current_user], repo, action)
 
   defp basic_authentication(conn, _opts) do
@@ -162,6 +242,59 @@ defmodule GitGud.SmartHTTPBackend do
       _ -> conn
     end
   end
+
+  def get_full_plug_request_body(conn, body \\ "") do
+    case Plug.Conn.read_body(conn, read_length: 1000, read_timeout: 15000) do
+      {:ok, stuff, conn} ->
+        {:done, body <> stuff, conn}
+      {:more, stuff, conn} ->
+        get_full_plug_request_body(conn, body <> stuff)
+      {:error, reason} ->
+        {:error, conn, reason}
+    end
+  end
+
+  defp process_object(conn, operation, user_login, repo_name, object) do
+    case MetaDB.get({:objects, object["oid"]}) do
+      nil ->
+        if operation == "upload" do
+          :ok = MetaDB.put({:objects, object["oid"]}, object)
+          build_object_with_action(conn, user_login, repo_name, object, :upload)
+        else
+          build_not_found_error(object)
+        end
+      meta ->
+        if ContentStore.exists?(meta) do
+          build_object_with_action(conn, user_login, repo_name, object, :download)
+        else
+          if operation == "upload" do
+            :ok = MetaDB.put({:objects, object["oid"]}, object)
+            build_object_with_action(conn, user_login, repo_name, object, :upload)
+          else
+            build_not_found_error(object)
+          end
+        end
+    end
+  end
+
+  defp build_object_with_action(conn, user_login, repo_name, object, action) do
+    %{
+      oid: object["oid"],
+      size: object["size"],
+      actions: %{
+        action =>  %{
+          href: Routes.smart_http_backend_url(
+            conn, :objects, user_login, repo_name, [oid: object["oid"]]
+          ),
+        }
+      }
+    }
+  end
+
+  defp build_not_found_error(object) do
+    %{oid: object["oid"], size: object["size"], error: %{code: 404, message: "Not found"}}
+  end
+
 
   defp halt_with_error(conn, status) do
     case status do
@@ -181,6 +314,10 @@ defmodule GitGud.SmartHTTPBackend do
       :not_found ->
         conn
         |> send_resp(:not_found, "Not Found")
+        |> halt()
+      {:error, reason} ->
+        conn
+        |> send_resp(:internal_server_error, "#{inspect(reason)}")
         |> halt()
     end
   end

@@ -27,6 +27,11 @@ defmodule GitGud.Web.Router do
 
   scope "/:user_login/:repo_name", GitGud do
     get "/info/refs", SmartHTTPBackend, :discover
+    post "/info/lfs/locks/verify", SmartHTTPBackend, :verify
+    put "/info/lfs/objects", SmartHTTPBackend, :upload_object
+    get "/info/lfs/objects", SmartHTTPBackend, :download_object
+    post "/info/lfs/objects", SmartHTTPBackend, :objects
+    post "/info/lfs/objects/batch", SmartHTTPBackend, :batch
     post "/git-receive-pack", SmartHTTPBackend, :receive_pack
     post "/git-upload-pack", SmartHTTPBackend, :upload_pack
   end

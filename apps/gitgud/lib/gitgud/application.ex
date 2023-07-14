@@ -12,6 +12,8 @@ defmodule GitGud.Application do
     children = [
       {Cluster.Supervisor, [Application.get_env(:libcluster, :topologies, []), [name: GitGud.ClusterSupervisor]]},
       {GitGud.DB, []},
+      {GitGud.MetaDB, [auto_file_sync: true, auto_compact: true]},
+      {GitGud.ContentStore, []},
       {GitGud.RepoSupervisor, []},
       {GitGud.SSHServer, []},
     ]

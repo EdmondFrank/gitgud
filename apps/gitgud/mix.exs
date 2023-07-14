@@ -35,6 +35,7 @@ defmodule GitGud.Mixfile do
     [
       {:absinthe, "~> 1.7", optional: true},
       {:argon2_elixir, "~> 3.0"},
+      {:cubdb, "~> 2.0"},
       {:ecto, "~> 3.9"},
       {:ecto_sql, "~> 3.9"},
       {:faker, "~> 0.17", only: :test},

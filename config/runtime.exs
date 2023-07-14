@@ -34,10 +34,24 @@ if config_env() == :prod do
     System.get_env("ASSET_HOST") ||
     raise "environment variable ASSET_HOST is missing."
 
+  meta_dir =
+      System.get_env("METADATA_DIR") ||
+    raise "environment variable METADATA_DIR is missing."
+
+  lfs_dir =
+      System.get_env("LFS_DIR") ||
+    raise "environment variable LFS_DIR is missing."
+
   config :gitgud, GitGud.DB,
     url: database_url,
     ssl: false,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+
+  config :gitgud, GitGud.MetaDB,
+    data_dir: meta_dir
+
+  config :gitgud, GitGud.ContentStore,
+    data_dir: lfs_dir
 
   config :gitgud, GitGud.RepoStorage, git_root: git_root
 

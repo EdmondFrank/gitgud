@@ -8,6 +8,12 @@ config :gitgud, GitGud.DB,
   hostname: "localhost",
   pool_size: 10
 
+config :gitgud, GitGud.MetaDB,
+  data_dir: "priv/meta-data"
+
+config :gitgud, GitGud.ContentStore,
+  data_dir: "priv/lfs-data"
+
 # Configure your SSH server
 config :gitgud, GitGud.SSHServer,
   port: 8989,

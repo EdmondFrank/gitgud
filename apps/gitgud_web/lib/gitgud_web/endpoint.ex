@@ -36,7 +36,8 @@ defmodule GitGud.Web.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    json_decoder: Jason
+    json_decoder: Jason,
+    length: 200_000_000
 
   plug Plug.MethodOverride
   plug Plug.Head
