@@ -3,7 +3,6 @@ defmodule GitGud.MetaDB do
   MetaDB implements a metadata storage. It stores user credentials and Meta information
   """
   use GenServer
-  @db_location Application.get_env(__MODULE__, :data_dir, "priv/meta-data")
 
   defmodule MetaObject do
     defstruct [:oid, :size, :existing]
@@ -14,7 +13,7 @@ defmodule GitGud.MetaDB do
   """
   @spec start_link(keyword) :: GenServer.on_start
   def start_link(opts \\ []) do
-    opts = Keyword.put(opts, :data_dir, @db_location)
+    opts = Keyword.put(opts, :data_dir, Keyword.fetch!(Application.get_env(:gitgud, __MODULE__), :data_dir))
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
@@ -55,7 +54,7 @@ defmodule GitGud.MetaDB do
   end
 
   def file_path do
-    @db_location
+    Keyword.fetch!(Application.get_env(:gitgud, __MODULE__), :data_dir)
   end
 
   @doc false

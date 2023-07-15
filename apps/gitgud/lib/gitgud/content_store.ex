@@ -1,10 +1,8 @@
 defmodule GitGud.ContentStore do
   use GenServer
 
-  @content_location Application.get_env(__MODULE__, :data_dir, "priv/lfs-data")
-
   def start_link(opts \\ []) do
-    opts = Keyword.put(opts, :data_dir, @content_location)
+    opts = Keyword.put(opts, :data_dir, Keyword.fetch!(Application.get_env(:gitgud, __MODULE__), :data_dir))
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
