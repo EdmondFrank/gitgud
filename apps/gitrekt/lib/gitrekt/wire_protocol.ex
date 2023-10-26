@@ -34,6 +34,11 @@ defmodule GitRekt.WireProtocol do
   @doc """
   Returns an *PKT-LINE* encoded representation of the given `lines`.
   """
+  @spec encode(binary()) :: binary()
+  def encode(lines) when is_binary(lines) do
+    lines
+  end
+
   @spec encode(Enumerable.t) :: iolist
   def encode(lines) do
     Enum.map(lines, &pkt_line/1)
@@ -132,10 +137,14 @@ defmodule GitRekt.WireProtocol do
   @doc false
   def __type__(%{__struct__: GitRekt.WireProtocol.UploadPack}), do: :upload_pack
   def __type__(%{__struct__: GitRekt.WireProtocol.ReceivePack}), do: :receive_pack
+  def __type__(%{__struct__: GitRekt.WireProtocol.LfsTransfer}), do: :lfs_transfer
+  def __type__(%{__struct__: GitRekt.WireProtocol.LfsAuthenticate}), do: :lfs_authenticate
 
   @doc false
   def __service__(:upload_pack), do: GitRekt.WireProtocol.UploadPack
   def __service__(:receive_pack), do: GitRekt.WireProtocol.ReceivePack
+  def __service__(:lfs_transfer), do: GitRekt.WireProtocol.LfsTransfer
+  def __service__(:lfs_authenticate), do: GitRektnet.WireProtocol.LfsAuthenticate
 
   #
   # Helpers
@@ -190,6 +199,8 @@ defmodule GitRekt.WireProtocol do
 
   defp exec_impl("git-upload-pack"),  do: GitRekt.WireProtocol.UploadPack
   defp exec_impl("git-receive-pack"), do: GitRekt.WireProtocol.ReceivePack
+  defp exec_impl("git-lfs-transfer"), do: GitRekt.WireProtocol.LfsTransfer
+  defp exec_impl("git-lfs-authenticate"), do: GitRekt.WireProtocol.LfsAuthenticate
 
   defp telemetry_start(_service, state, _ref) when state == :buffer, do: :ok
   defp telemetry_start(service, state, ref) do

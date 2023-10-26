@@ -55,6 +55,7 @@ defmodule GitGud.SmartHTTPBackend do
 
   alias GitGud.Account
   alias GitGud.User
+  alias GitGud.UserQuery
   alias GitGud.RepoQuery
 
   alias GitGud.Authorization
@@ -64,6 +65,7 @@ defmodule GitGud.SmartHTTPBackend do
 
   alias GitGud.Web.Router.Helpers, as: Routes
 
+  plug :bearer_token_authentication
   plug :basic_authentication
 
   @doc """
@@ -237,6 +239,16 @@ defmodule GitGud.SmartHTTPBackend do
          {:ok, credentials} <- decode64(auth),
          [login, passwd] <- split(credentials, ":", parts: 2),
          %User{} = user <- Account.check_credentials(login, passwd) do
+      assign(conn, :current_user, user)
+    else
+      _ -> conn
+    end
+  end
+
+  defp bearer_token_authentication(conn, _opts) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         {:ok, user_login} <- Phoenix.Token.verify(conn, "bearer", token, max_age: 86400),
+           %User{} = user <- UserQuery.by_login(user_login) do
       assign(conn, :current_user, user)
     else
       _ -> conn
