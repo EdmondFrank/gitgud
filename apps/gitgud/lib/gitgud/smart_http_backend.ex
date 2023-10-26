@@ -65,8 +65,8 @@ defmodule GitGud.SmartHTTPBackend do
 
   alias GitGud.Web.Router.Helpers, as: Routes
 
-  plug :bearer_token_authentication
   plug :basic_authentication
+  plug :bearer_token_authentication
 
   @doc """
   Returns all references available for the given Git repository.
@@ -143,6 +143,8 @@ defmodule GitGud.SmartHTTPBackend do
         conn
         |> put_resp_content_type("application/vnd.git-lfs+json")
         |> send_resp(:ok, Jason.encode!(result))
+      {:error, status_error} ->
+        halt_with_error(conn, status_error)
     end
   end
 
@@ -174,7 +176,6 @@ defmodule GitGud.SmartHTTPBackend do
           :ok ->
             send_resp(conn, :ok, "OK")
           {:error, reason} ->
-            IO.inspect(reason)
             halt_with_error(conn, {:error, reason})
         end
     end
