@@ -203,6 +203,7 @@ ERL_NIF_TERM
 geef_diff_tree(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
 	int error;
+        int nums_of_null_tree = 0;
 	geef_repository *repo;
         geef_object *old_tree = NULL;
         geef_object *new_tree = NULL;
@@ -213,9 +214,15 @@ geef_diff_tree(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 	if (!enif_get_resource(env, argv[0], geef_repository_type, (void **) &repo))
 		return enif_make_badarg(env);
 
-	if (!enif_get_resource(env, argv[1], geef_object_type, (void **) &old_tree) &&
-            !enif_get_resource(env, argv[2], geef_object_type, (void **) &new_tree))
-		return enif_make_badarg(env);
+	if (!enif_get_resource(env, argv[1], geef_object_type, (void **) &old_tree))
+                nums_of_null_tree += 1;
+
+	if (!enif_get_resource(env, argv[2], geef_object_type, (void **) &new_tree))
+                nums_of_null_tree += 1;
+
+        if (nums_of_null_tree > 1) {
+                return enif_make_badarg(env);
+        }
 
 	diff = enif_alloc_resource(geef_diff_type, sizeof(geef_diff));
 	if (!diff)
