@@ -2,8 +2,6 @@ import Config
 
 if config_env() == :prod do
 
-  app_name = "gitfrank"
-
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||
     raise """
@@ -74,9 +72,18 @@ if config_env() == :prod do
     secret_key_base: secret_key_base
 
   config :gitgud_web, GitGud.Mailer,
-    adapter: Bamboo.MailgunAdapter,
-    api_key: System.get_env("MAILGUN_API_KEY"),
-    domain: "mail.git.limo"
+    adapter: Bamboo.SMTPAdapter,
+    server: {:system, "SMTP_SERVER"},
+    port: {:system, "SMTP_PORT"},
+    username: {:system, "SMTP_USERNAME"},
+    password: {:system, "SMTP_PASSWORD"},
+    tls: :if_available, # can be `:always` or `:never`
+    allowed_tls_versions: [:tlsv1, :"tlsv1.1", :"tlsv1.2"],
+    tls_log_level: :error,
+    ssl: true, # can be `true`
+    retries: 1,
+    no_mx_lookups: false, # can be `true`
+    auth: :if_available # can be `:always`. If your smtp relay requires authentication set it to `:always`.
 
   config :gitgud_web, GitGud.OAuth2.GitHub,
     client_id: System.get_env("OAUTH2_GITHUB_CLIENT_ID"),

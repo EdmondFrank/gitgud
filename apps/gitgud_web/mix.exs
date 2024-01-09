@@ -38,6 +38,7 @@ defmodule GitGud.Web.Mixfile do
       {:absinthe_relay, "~> 1.5"},
       {:absinthe_phoenix, "~> 2.0"},
       {:bamboo, "~> 2.2"},
+      {:bamboo_smtp, "~> 4.2"},
       {:bamboo_phoenix, "~> 1.0"},
       {:earmark, "~> 1.4"},
       {:cmark, "~> 0.10.0"},

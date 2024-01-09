@@ -1,4 +1,4 @@
-defmodule GitLimo.Umbrella.Mixfile do
+defmodule GitGud.Umbrella.Mixfile do
   use Mix.Project
 
   @version "0.3.9"
@@ -7,13 +7,13 @@ defmodule GitLimo.Umbrella.Mixfile do
     [
       apps_path: "apps",
       version: @version,
-      name: "git.limo",
+      name: "gitgud",
       start_permanent: Mix.env == :prod,
       aliases: aliases(),
       deps: deps(),
       docs: docs(),
       releases: [
-        git_limo: [
+        gitgud: [
           applications: [
             gitgud_web: :permanent,
             runtime_tools: :permanent

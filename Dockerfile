@@ -60,7 +60,7 @@ WORKDIR /app
 
 RUN chown nobody:nobody /app
 
-COPY --from=build --chown=nobody:nobody /build/_build/prod/rel/git_limo ./
+COPY --from=build --chown=nobody:nobody /build/_build/prod/rel/gitgud ./
 COPY entrypoint.sh ./
 
 # RUN mkdir ssh-keys
@@ -73,4 +73,4 @@ ARG APP_REVISION
 ENV APP_REVISION=$APP_REVISION
 
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["bin/git_limo", "start"]
+CMD ["bin/gitgud", "start"]

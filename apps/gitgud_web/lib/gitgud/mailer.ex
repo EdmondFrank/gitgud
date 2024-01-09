@@ -38,8 +38,9 @@ defmodule GitGud.Mailer do
   #
 
   defp base_email do
+    email_from = System.get_env("SMTP_FROM") || "gitgud <no-reply@gitgud.one>"
     new_email()
-    |> from("git.limo <no-reply@git.limo>")
+    |> from(email_from)
     |> put_html_layout({GitGud.Web.LayoutView, "mailer.html"})
   end
 end

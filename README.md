@@ -1,10 +1,9 @@
-# Git.limo
+# GitGud
 
-[![Elixir CI](https://github.com/almightycouch/gitgud/workflows/Elixir%20CI/badge.svg)](https://github.com/almightycouch/gitgud/actions?query=workflow%3A%22Elixir+CI%22)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/almightycouch/gitgud/master/LICENSE)
-[![Github Issues](https://img.shields.io/github/issues/almightycouch/gitgud.svg)](http://github.com/almightycouch/gitgud/issues)
+[![Elixir CI](https://github.com/EdmondFrank/gitgud/workflows/Elixir%20CI/badge.svg)](https://github.com/EdmondFrank/gitgud/actions?query=workflow%3A%22Elixir+CI%22)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/EdmondFrank/gitgud/master/LICENSE)
 
-<img src="https://raw.githubusercontent.com/almightycouch/gitgud/master/apps/gitgud_web/priv/static/images/logo.svg?sanitize=true" align="right" width="240" height="240">
+<img src="https://raw.githubusercontent.com/EdmondFrank/gitgud/master/apps/gitgud_web/priv/static/images/logo.svg?sanitize=true" align="right" width="240" height="240">
 
 A Git source code management tool written in Elixir.
 
@@ -16,8 +15,6 @@ A Git source code management tool written in Elixir.
 * [x] Issue tracker.
 * [x] Code reviews.
 * [ ] Continuous integration.
-
-See the [Getting Started](http://almightycouch.com/gitgud/getting-started.html) guide and the [online documentation](http://almightycouch.com/gitgud).
 
 ## Install dependencies
 
@@ -40,7 +37,7 @@ You will also need [Node.js](https://nodejs.org/en/) to compile Web assets and [
 Clone the latest version of the project:
 
 ```bash
-git clone https://github.com/almightycouch/gitgud.git
+git clone https://github.com/EdmondFrank/gitgud.git
 ```
 
 Download Hex dependencies and compile everything:
@@ -81,7 +78,3 @@ Finally, start both HTTP (port 4000) and SSH (port 8989) endpoints:
 ```bash
 mix phx.server
 ```
-
----
-
-![Illustration by @ahruygt](https://raw.githubusercontent.com/almightycouch/gitgud/master/apps/gitgud_web/priv/static/images/illustration.png?sanitize=true)

@@ -1,8 +1,8 @@
 version: "2.0"
 services:
-  git-frank:
+  gitgud:
     restart: always
-    container_name: git-frank
+    container_name: gitgud
     build:
       context: .
       dockerfile: Dockerfile
