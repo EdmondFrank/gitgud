@@ -1,0 +1,82 @@
+<div class="release-form-container">
+  <.form
+    let={f}
+    for={@changeset}
+    action={if(@new_record, do: Routes.release_path(@socket, :create, @repo.owner_login, @repo), else: Routes.release_path(@socket, :update, @repo.owner_login, @repo, @release))}
+    as={:release}
+    phx-change="validate"
+    phx-submit="submit"
+    phx-trigger_action={@trigger_submit}
+    method={if(@new_record, do: "post", else: "put")}
+    >
+    <div class="columns">
+      <div class="column is-three-quarters">
+        <div class="box">
+
+          <div class="field">
+            <div class="control">
+              <%= text_input f, :title, class: "input", placeholder: "Title" %>
+            </div>
+            <%= error_tag f, :title %>
+          </div>
+
+          <div class="field">
+            <div class="control">
+              <%= textarea f, :description, class: "textarea", placeholder: "Description", rows: "10" %>
+            </div>
+            <%= error_tag f, :description %>
+          </div>
+
+          <div class="field">
+            <div class="control">
+              <%= checkbox f, :release_type, class: "checkbox", checked_value: "preview", unchecked_value: "normal" %>
+              Preview Release
+            </div>
+            <%= error_tag f, :release_type %>
+          </div>
+
+          <div class="field">
+            <div class="control">
+              <%= text_input f, :tag_version, class: "input", placeholder: "Tag a release. e.g. release tag: v1.0 or v2.3.4; prerelease tag: v0.2-alpha or v5.9-beta.3." %>
+            </div>
+            <%= error_tag f, :tag_version %>
+          </div>
+
+          <div class="field">
+            <aside class="menu">
+              <div class="select">
+                <%= select(f, :revision, Enum.map(@tags, &[key: elem(&1, 0).name, value: inspect_oid(elem(&1, 0).oid)]), prompt: "Choose a target tag") %>
+              </div>
+            </aside>
+            <%= error_tag f, :revision %>
+          </div>
+
+          <div class="field is-grouped is-grouped-right">
+            <%= if @new_record do %>
+            <%= submit "Create Release", class: "button is-success", disabled: connected?(@socket) && !@changeset.valid? %>
+            <% else %>
+            <%= submit "Update Release", class: "button is-success", disabled: connected?(@socket) && !@changeset.valid? %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+      <div class="column is-one-quarter">
+        <ul>
+          <li>
+            <h2 class="subtitle"> Tag Naming Tips </h2>
+            <span class="has-text-grey">
+              It's common practice to preface your tag names with a v prefix.
+              If the tag is not suitable for consumption in production, append a prerelease tag onto the version.
+            </span>
+          </li>
+          <li>
+            <h2 class="subtitle"> Semantic Versioning </h2>
+            <span class="has-text-grey">
+              If this is your first time releasing software, we strongly encourage you to read about <a href="https://semver.org/" target="_blank"> Semantic Versioning </a>.
+            </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </.form>
+</div>

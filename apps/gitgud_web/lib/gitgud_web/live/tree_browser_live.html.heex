@@ -23,6 +23,12 @@
           <% end %>
         </li>
         <li>
+          <%= live_redirect to: Routes.release_path(@socket, :index, @repo.owner_login, @repo) do %>
+            <span class="icon"><i class="fa fa-archive" aria-hidden="true"></i></span>
+            <span>Releases&nbsp;&nbsp;<span class="release"><%= @stats[:releases] || 0 %></span></span>
+          <% end %>
+        </li>
+        <li>
           <a>
             <span class="icon"><i class="fa fa-user-friends" aria-hidden="true"></i></span>
             <span>Contributors&nbsp;&nbsp;<span class="tag"><%= @stats[:contributors] || 0 %></span></span>

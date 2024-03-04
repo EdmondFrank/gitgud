@@ -13,6 +13,7 @@ defmodule GitGud.Web.TreeBrowserLive do
 
   alias GitGud.UserQuery
   alias GitGud.RepoQuery
+  alias GitGud.ReleaseQuery
 
   import GitRekt.Git, only: [oid_fmt: 1, oid_fmt_short: 1]
 
@@ -94,6 +95,7 @@ defmodule GitGud.Web.TreeBrowserLive do
       assigns = Map.update!(assigns, :tree_commit_info, &resolve_commit_info_db/1)
       assigns = Map.update!(assigns, :tree_entries, &Enum.sort_by(&1, fn tree_entry -> tree_entry.name end))
       assigns = Map.update!(assigns, :tree_entries, &Enum.map(&1, fn tree_entry -> {tree_entry, nil} end))
+      assigns = Map.update!(assigns, :stats, &Map.put(&1, :releases, ReleaseQuery.count_repo_releases(socket.assigns.repo)))
       assigns =
         if resolve_stats?,
           do: Map.update(assigns, :stats, %{}, &Map.put(&1, :contributors, RepoQuery.count_contributors(socket.assigns.repo))),

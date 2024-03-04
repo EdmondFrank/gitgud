@@ -1,0 +1,58 @@
+<table class="table tags-table is-fullwidth">
+  <tbody>
+    <tr>
+      <td>
+        <div class="title has-text-weight-bold">
+          <%= @release.title %>
+        </div>
+        <span>
+          <div>
+            <%= user_avatar(@release.author, size: 18) %>
+            <a href={Routes.user_path(@conn, :show, @release.author)} class="tag is-white user">
+              <span class="tag is-light"><%= @release.author.name %></span>
+            </a>
+            <%= if @release.release_type == "normal" do %>
+            <span class="tag is-primary">Release: <%= @release.tag_version %></span>
+            <% else %>
+            <span class="tag is-light">Preview Release: <%= @release.tag_version %></span>
+            <% end %>
+            <span class="tag is-light">
+              <span class="icon">
+                <i class="fas fa-link"></i>
+              </span>
+              <a href={Routes.codebase_path(@conn, :commit, @repo.owner_login, @repo, @release.revision)}>
+                <%= String.slice(@release.revision, 0, 7) %>
+              </a>
+            </span>
+            <span class="tag is-light">
+              <text class="has-text-grey mr-1">created at:</text>
+              <%= datetime_format(@release.inserted_at, "{ISOdate} {ISOtime}") %>
+            </span>
+            <span class="tag is-light">
+              <text class="has-text-grey mr-1">last updated at:</text>
+              <%= datetime_format(@release.updated_at, "{ISOdate} {ISOtime}") %>
+            </span>
+          </div>
+          <div class="level-right">
+            <div class="level-item">
+              <div class="buttons is-pulled-right">
+                <%= if authorized?(@conn, @repo, :admin) do %>
+                <%= button "Edit",
+                    to: Routes.release_path(@conn, :edit, @repo.owner_login, @repo, @release.id),
+                    method: "get",
+                    class: "button is-small" %>
+                <%= button "Delete",
+                    to: Routes.release_path(@conn, :delete, @repo.owner_login, @repo, @release.id),
+                    method: "delete",
+                    class: "button is-danger is-small",
+                    data: [confirm: "Once you delete a release, there is no going back.\nPlease be certain."] %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          <div class="content"><%= markdown_safe(@release.description) %></div>
+        </span>
+      </td>
+    </tr>
+  </tbody>
+</table>

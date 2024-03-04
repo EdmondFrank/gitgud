@@ -10,6 +10,9 @@ defmodule GitGud.Repo do
   alias Ecto.Multi
 
   alias GitRekt.GitAgent
+  alias GitRekt.GitRef
+  alias GitRekt.GitTag
+  alias GitRekt.GitRepo
 
   alias GitGud.DB
   alias GitGud.Issue
@@ -247,6 +250,36 @@ defmodule GitGud.Repo do
     |> cast_assoc(:issue_labels, with: &IssueLabel.changeset/2)
   end
 
+  @doc """
+  Returns branches for the given `repo`.
+  """
+  @spec branches(%__MODULE__{}) :: [tuple] | {:error, term}
+  def branches(%__MODULE__{} = repo) do
+    with {:ok, agent} <- GitRepo.get_agent(repo),
+         {:ok, {head, branches}} <- GitAgent.transaction(agent, &resolve_branches/1) do
+      if head_index = Enum.find_index(branches, &match?({^head, _, _}, &1)) do
+        Enum.sort_by(List.delete_at(branches, head_index), &elem(&1, 2), {:desc, Date})
+      else
+        Enum.sort_by(branches, &elem(&1, 2), {:desc, Date})
+      end
+    end
+  end
+
+  @doc """
+  Returns tags for the given `repo`.
+  """
+  @spec tags(%__MODULE__{}) :: [tuple] | {:error, term}
+  def tags(%__MODULE__{} = repo) do
+    with {:ok, agent} <- GitRepo.get_agent(repo) do
+      case GitAgent.transaction(agent, &resolve_tags/1) do
+        {:ok, tags} ->
+          Enum.sort_by(tags, &elem(&1, 2), {:desc, Date})
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
   #
   # Protocols
   #
@@ -329,6 +362,53 @@ defmodule GitGud.Repo do
       end
     else
       {:ok, false}
+    end
+  end
+
+  defp resolve_tags(agent) do
+    case GitAgent.tags(agent) do
+      {:ok, tags} ->
+        resolve_revisions(agent, tags)
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp resolve_branches(agent) do
+    with {:ok, branches} <- GitAgent.branches(agent),
+         {:ok, branches} <- resolve_revisions(agent, branches) do
+      case GitAgent.head(agent) do
+        {:ok, head} ->
+          {:ok, {head, branches}}
+        {:error, _reason} ->
+          {:ok, {nil, branches}}
+      end
+    end
+  end
+
+  defp resolve_revisions(agent, revs) do
+    GitAgent.transaction(agent, fn agent ->
+      Enum.reduce_while(Enum.reverse(revs), {:ok, []}, &resolve_revision(agent, &1, &2))
+    end)
+  end
+
+  defp resolve_revision(agent, %GitRef{} = rev, {:ok, acc}) do
+    with {:ok, commit} <- GitAgent.peel(agent, rev, target: :commit),
+         {:ok, author} <- GitAgent.commit_author(agent, commit),
+         {:ok, timestamp} <- GitAgent.commit_timestamp(agent, commit) do
+      {:cont, {:ok, [{rev, author, timestamp}|acc]}}
+    else
+      {:error, reason} ->
+        {:halt, {:error, reason}}
+    end
+  end
+
+  defp resolve_revision(agent, %GitTag{} = tag, {:ok, acc}) do
+    case GitAgent.tag_author(agent, tag) do
+      {:ok, author} ->
+        {:cont, {:ok, [{tag, author, author.timestamp}|acc]}}
+      {:error, reason} ->
+        {:halt, {:error, reason}}
     end
   end
 

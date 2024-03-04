@@ -1,0 +1,3 @@
+<h2 class="subtitle">Edit a release</h2>
+
+<%= live_render(@conn, GitGud.Web.ReleaseFormLive, session: %{"repo_id" => @repo.id, "release_id" => @release_id}) %>

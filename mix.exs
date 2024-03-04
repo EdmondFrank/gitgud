@@ -1,7 +1,7 @@
 defmodule GitGud.Umbrella.Mixfile do
   use Mix.Project
 
-  @version "0.3.9"
+  @version "0.4.0"
 
   def project do
     [
@@ -125,6 +125,7 @@ defmodule GitGud.Umbrella.Mixfile do
           GitGud.Web.DateTimeFormatter,
           GitGud.Web.EmailController,
           GitGud.Web.Emoji,
+          GitGud.Web.GitFormatter,
           GitGud.Web.Endpoint,
           GitGud.Web.ErrorHelpers,
           GitGud.Web.ErrorView,

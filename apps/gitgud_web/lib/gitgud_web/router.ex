@@ -109,6 +109,14 @@ defmodule GitGud.Web.Router do
         get "/edit/:revision/*path", CodebaseController, :edit
         get "/delete/:revision/*path", CodebaseController, :confirm_delete
 
+        get "/releases", ReleaseController, :index
+        get "/releases/new", ReleaseController, :new
+        get "/releases/:id", ReleaseController, :show
+        get "/releases/:id/edit", ReleaseController, :edit
+        post "/releases", ReleaseController, :create
+        put "/releases/:id", ReleaseController, :update
+        delete "/releases/:id", ReleaseController, :delete
+
         get "/issues", IssueController, :index
         get "/issues/new", IssueController, :new
         post "/issues", IssueController, :create
