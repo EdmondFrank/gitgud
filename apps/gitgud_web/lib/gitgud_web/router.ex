@@ -116,6 +116,7 @@ defmodule GitGud.Web.Router do
         post "/releases", ReleaseController, :create
         put "/releases/:id", ReleaseController, :update
         delete "/releases/:id", ReleaseController, :delete
+        get "/releases/:release_id/attachments/:id", ReleaseController, :download
 
         get "/issues", IssueController, :index
         get "/issues/new", IssueController, :new

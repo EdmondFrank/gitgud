@@ -78,12 +78,32 @@ defmodule GitGud.Web.ReleaseController do
     if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
       if verified?(user) do
         release_id = String.to_integer(id)
-        if release = ReleaseQuery.by_id(release_id, preload: [:author]) do
+        if release = ReleaseQuery.by_id(release_id, preload: [:author, :attachments]) do
           render(conn, "show.html",
             repo: repo,
             release: release,
             repo_open_issue_count: IssueQuery.count_repo_issues(repo, status: :open)
           )
+        end || {:error, :not_found}
+      end || {:error, :forbidden}
+    end || {:error, :not_found}
+  end
+
+  @doc """
+  Donwload an attachment of a release.
+  """
+  @spec download(Plug.Conn.t, map) :: Plug.Conn.t
+  def download(conn, %{"user_login" => user_login, "repo_name" => repo_name, "release_id" => release_id, "id" => id} = _params) do
+    user = current_user(conn)
+    if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
+      if verified?(user) do
+        release_id = String.to_integer(release_id)
+        if release = ReleaseQuery.by_id(release_id, preload: [:attachments]) do
+          if attachment = Enum.find(release.attachments, &(&1.id == String.to_integer(id))) do
+            conn
+            |> put_resp_header("content-disposition", "attachment; filename=#{attachment.filename}")
+            |> send_file(200, "#{GitGud.Uploaders.Attachment.storage_dir_prefix}/uploads/#{attachment.key}")
+          end || {:error, :not_found}
         end || {:error, :not_found}
       end || {:error, :forbidden}
     end || {:error, :not_found}

@@ -43,13 +43,37 @@
           </div>
 
           <div class="field">
-            <aside class="menu">
-              <div class="select">
-                <%= select(f, :revision, Enum.map(@tags, &[key: elem(&1, 0).name, value: inspect_oid(elem(&1, 0).oid)]), prompt: "Choose a target tag") %>
-              </div>
-            </aside>
+            <div class="select">
+              <%= select(f, :revision, Enum.map(@tags, &[key: elem(&1, 0).name, value: inspect_oid(elem(&1, 0).oid)]), prompt: "Choose a target tag") %>
+            </div>
             <%= error_tag f, :revision %>
           </div>
+
+          <%= if !@new_record do %>
+          <div class="field">
+            <p>You may add up to <%= @uploads.attachment.max_entries %> attachments at a time.</p>
+            <.live_file_input upload={@uploads.attachment} />
+          </div>
+
+          <div class="field is-grouped is-grouped-multiline">
+            <%= for entry <- @uploads.attachment.entries do %>
+                <div class="control">
+                  <div class="box" id={entry.ref}>
+                    <div class="tags has-addons">
+                      <span class="tag is-light"><%= truncate(entry.client_name, max_length: 20) %></span>
+                      <a class="tag is-delete" phx-click="cancel-upload" phx-value-ref={entry.ref}></a>
+                      <progress class="progress is-success is-small" value={entry.progress} max="100"><%= entry.progress %>%</progress>
+                    </div>
+                    <%= for error <- upload_errors(@uploads.attachment, entry) do %>
+                        <div class="message is-danger is-small">
+                          <p class="message-body"><%= upload_error_to_string(error) %></p>
+                        </div>
+                    <% end %>
+                  </div>
+                </div>
+            <% end %>
+          </div>
+          <% end %>
 
           <div class="field is-grouped is-grouped-right">
             <%= if @new_record do %>

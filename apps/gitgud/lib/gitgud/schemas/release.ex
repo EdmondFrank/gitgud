@@ -7,6 +7,7 @@ defmodule GitGud.Release do
   alias GitGud.DB
   alias GitGud.Repo
   alias GitGud.User
+  alias GitGud.Attachment
 
   import Ecto.Changeset
 
@@ -18,6 +19,7 @@ defmodule GitGud.Release do
     field :revision, :string
     belongs_to :repo, Repo
     belongs_to :author, User
+    has_many :attachments, Attachment, foreign_key: :attachable_id, where: [attachable_type: "release"]
     timestamps()
   end
 
@@ -70,7 +72,9 @@ defmodule GitGud.Release do
 
   @spec update(t, map|keyword) :: {:ok, t} | {:error, Ecto.Changeset.t}
   def update(%__MODULE__{} = release, params) do
-    DB.update(changeset(release, Map.new(params)))
+    release
+    |> changeset(params)
+    |> DB.update()
   end
 
   @doc """
@@ -78,7 +82,9 @@ defmodule GitGud.Release do
   """
   @spec update!(t, map|keyword) :: t
   def update!(%__MODULE__{} = release, params) do
-    DB.update!(changeset(release, Map.new(params)))
+    release
+    |> changeset(params)
+    |> DB.update!()
   end
 
   @doc """
@@ -110,5 +116,4 @@ defmodule GitGud.Release do
     |> cast(params, [:title, :description, :release_type, :tag_version, :revision])
     |> validate_required([:title, :description, :tag_version, :revision])
   end
-
 end

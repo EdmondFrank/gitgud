@@ -51,6 +51,19 @@
             </div>
           </div>
           <div class="content"><%= markdown_safe(@release.description) %></div>
+          <nav class="panel">
+            <p class="panel-heading">
+              Attachments
+            </p>
+            <%= for attachment <- @release.attachments do %>
+                <a class="panel-block" href={Routes.release_path(@conn, :download, @repo.owner_login, @repo, @release.id, attachment.id)}>
+                  <span class="panel-icon">
+                    <i class="fas fa-book" aria-hidden="true"></i>
+                  </span>
+                  <%= attachment.filename %>
+                </a>
+            <% end %>
+          </nav>
         </span>
       </td>
     </tr>
