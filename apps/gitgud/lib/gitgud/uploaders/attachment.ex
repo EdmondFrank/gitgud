@@ -16,14 +16,9 @@ defmodule GitGud.Uploaders.Attachment do
   #   end
   # end
 
-  # Define a thumbnail transformation:
-  # def transform(:thumb, _) do
-  #   {:convert, "-strip -thumbnail 250x250^ -gravity center -extent 250x250"}
-  # end
-
   # Override the persisted filenames:
-  def filename(_version, {file, name}) do
-    name || sha256(file.path)
+  def filename(_version, {file, _scope}) do
+    sha256(file.path)
   end
 
   def sha256(path) do
@@ -33,22 +28,14 @@ defmodule GitGud.Uploaders.Attachment do
     |> Base.encode16(case: :lower)
   end
 
+  # Override the storage storage_dir_prefix:
+  def storage_dir_prefix() do
+    Application.get_env(:waffle, :priv_storage_dir_prefix)
+  end
+
   # Override the storage directory:
-  # def storage_dir(version, {file, scope}) do
-  #   "uploads/user/avatars/#{scope.id}"
-  # end
+  def storage_dir(_version, {_file, scope}) do
+    "uploads/release/#{scope.id}"
+  end
 
-  # Provide a default URL if there hasn't been a file uploaded
-  # def default_url(version, _scope) do
-  #   "/images/avatars/default_#{version}.png"
-  # end
-
-  # Specify custom headers for s3 objects
-  # Available options are [:cache_control, :content_disposition,
-  #    :content_encoding, :content_length, :content_type,
-  #    :expect, :expires, :storage_class, :website_redirect_location]
-  #
-  # def s3_object_headers(version, {file, scope}) do
-  #   [content_type: MIME.from_path(file.file_name)]
-  # end
 end

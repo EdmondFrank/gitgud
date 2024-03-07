@@ -18,7 +18,8 @@ config :gitgud_web, GitGud.Web.Endpoint,
 config :waffle,
   storage: Waffle.Storage.Local,
   storage_dir: "/uploads",
-  storage_dir_prefix: "priv/static/avatar"
+  storage_dir_prefix: "priv/static/avatar",
+  priv_storage_dir_prefix: "priv/static/asset"
 
 # Configure generators
 config :gitgud_web, :generators,

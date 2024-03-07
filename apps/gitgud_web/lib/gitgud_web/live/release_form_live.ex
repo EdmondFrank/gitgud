@@ -33,7 +33,7 @@ defmodule GitGud.Web.ReleaseFormLive do
         |> assign_new(:attachments, fn -> release.attachments end)
         |> assign_changeset(release)
         |> assign(trigger_submit: false, new_record: false)
-        |> allow_upload(:attachment, accept: :any, max_entries: 5, chunk_size: 64 * 1_024)
+        |> allow_upload(:attachment, accept: :any, max_entries: 5, chunk_size: 64 * 1_024, max_file_size: 100_000_000 )
       }
     end
   end
@@ -78,10 +78,11 @@ defmodule GitGud.Web.ReleaseFormLive do
     case Ecto.Changeset.apply_action(changeset, if(new_record, do: :insert, else: :update)) do
       {:ok, _release} ->
         unless new_record do
+          release = socket.assigns.release
           consume_uploaded_entries(socket, :attachment, fn %{path: path}, entry ->
             sha256 = Uploaders.Attachment.sha256(path)
-            Uploaders.Attachment.store({path, sha256})
-            Attachment.create(socket.assigns.release, %{
+            Uploaders.Attachment.store({path, release})
+            Attachment.create(release, %{
                   key: sha256, filename: entry.client_name, byte_size: File.stat!(path).size, checksum: sha256 })
           end)
         end

@@ -10,6 +10,7 @@ defmodule GitGud.Web.ReleaseController do
   alias GitGud.Release
   alias GitGud.ReleaseQuery
   alias GitGud.IssueQuery
+  alias GitGud.Uploaders.Attachment
 
 
   plug :ensure_authenticated when action in [:new, :create]
@@ -102,7 +103,9 @@ defmodule GitGud.Web.ReleaseController do
           if attachment = Enum.find(release.attachments, &(&1.id == String.to_integer(id))) do
             conn
             |> put_resp_header("content-disposition", "attachment; filename=#{attachment.filename}")
-            |> send_file(200, "#{GitGud.Uploaders.Attachment.storage_dir_prefix}/uploads/#{attachment.key}")
+            |> send_file(200, Path.join([
+                  Attachment.storage_dir_prefix(),
+                  Attachment.storage_dir(nil, {nil, release}), attachment.key]))
           end || {:error, :not_found}
         end || {:error, :not_found}
       end || {:error, :forbidden}

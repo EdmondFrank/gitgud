@@ -28,6 +28,10 @@ if config_env() == :prod do
     System.get_env("UPLOADS_DIR") ||
     raise "environment variable UPLOADS_DIR is missing."
 
+  priv_uploads_dir =
+    System.get_env("PRIV_UPLOADS_DIR") ||
+    raise "environment variable PRIV_UPLOADS_DIR is missing."
+
   asset_host =
     System.get_env("ASSET_HOST") ||
     raise "environment variable ASSET_HOST is missing."
@@ -54,6 +58,7 @@ if config_env() == :prod do
   config :gitgud, GitGud.RepoStorage, git_root: git_root
 
   config :waffle,
+    priv_storage_dir_prefix: priv_uploads_dir,
     storage_dir_prefix: uploads_dir,
     asset_host: asset_host
 
