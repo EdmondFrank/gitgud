@@ -95,11 +95,14 @@ defmodule GitGud.Web.TreeBrowserLive do
       assigns = Map.update!(assigns, :tree_commit_info, &resolve_commit_info_db/1)
       assigns = Map.update!(assigns, :tree_entries, &Enum.sort_by(&1, fn tree_entry -> tree_entry.name end))
       assigns = Map.update!(assigns, :tree_entries, &Enum.map(&1, fn tree_entry -> {tree_entry, nil} end))
-      assigns = Map.update!(assigns, :stats, &Map.put(&1, :releases, ReleaseQuery.count_repo_releases(socket.assigns.repo)))
       assigns =
-        if resolve_stats?,
-          do: Map.update(assigns, :stats, %{}, &Map.put(&1, :contributors, RepoQuery.count_contributors(socket.assigns.repo))),
-        else: assigns
+      if resolve_stats? do
+        assigns
+        |> Map.update(:stats, %{}, &Map.put(&1, :releases, ReleaseQuery.count_repo_releases(socket.assigns.repo)))
+        |> Map.update(:stats, %{}, &Map.put(&1, :contributors, RepoQuery.count_contributors(socket.assigns.repo)))
+      else
+        assigns
+      end
 
       socket
       |> assign(rev_spec: rev_spec, tree_path: tree_path)
