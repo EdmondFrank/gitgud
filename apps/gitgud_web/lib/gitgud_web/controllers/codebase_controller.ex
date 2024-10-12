@@ -144,7 +144,7 @@ defmodule GitGud.Web.CodebaseController do
           with {:ok, agent} <- GitRepo.get_agent(repo),
                {:ok, {reference, commit, blob_content, _blob_size}} <- GitAgent.transaction(agent, &resolve_blob(&1, revision, blob_path)) do
             breadcrumb = %{action: :tree, cwd?: false, tree?: true}
-            changeset = blob_commit_changeset(%{name: Path.basename(blob_path), content: blob_content}, commit_params)
+            changeset = blob_commit_changeset(%{name: Path.basename(Path.join(blob_path)), content: blob_content}, commit_params)
             if changeset.valid? do # TODO
               blob_content = blob_changeset_content(changeset)
               commit_update_ref = commit_changeset_update_ref(changeset)
