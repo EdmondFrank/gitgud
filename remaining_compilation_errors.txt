@@ -1,0 +1,4 @@
+==> gitrekt
+==> gitgud_web
+Compiling 13 files (.ex)
+Generated gitgud_web app
