@@ -92,7 +92,7 @@ defmodule GitGud.Web.Router do
     get "/:user_login/repositories", RepoController, :index
 
     scope "/:user_login/:repo_name" do
-      live_session :repo, root_layout: {GitGud.Web.LayoutView, "repo.html"} do
+      live_session :repo, layout: {GitGud.Web.LayoutView, :repo} do
         live "/", TreeBrowserLive, :show, as: :codebase
         live "/tree/:revision/*path", TreeBrowserLive, :tree, as: :codebase
         live "/blob/:revision/*path", BlobViewerLive, :blob, as: :codebase

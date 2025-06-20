@@ -1,6 +1,6 @@
 <div class="release-form-container">
   <.form
-    let={f}
+    :let={f}
     for={@changeset}
     action={if(@new_record, do: Routes.release_path(@socket, :create, @repo.owner_login, @repo), else: Routes.release_path(@socket, :update, @repo.owner_login, @repo, @release))}
     as={:release}

@@ -1,5 +1,5 @@
 <div class="issue-form-container">
-  <.form let={f} for={@changeset} action={Routes.issue_path(@socket, :create, @repo.owner_login, @repo)} as={:issue} phx-change="validate" phx-submit="submit" phx-trigger_action={@trigger_submit}>
+  <.form :let={f} for={@changeset} action={Routes.issue_path(@socket, :create, @repo.owner_login, @repo)} as={:issue} phx-change="validate" phx-submit="submit" phx-trigger_action={@trigger_submit}>
     <div class="columns">
       <div class="column is-three-quarters">
         <div class="box">

@@ -1,0 +1,34 @@
+==> gitrekt
+==> gitgud_web
+Compiling 81 files (.ex)
+warning: Application.get_env/2 is discouraged in the module body, use Application.compile_env/3 instead
+  lib/gitgud_web/endpoint.ex:19: GitGud.Web.Endpoint
+
+* creating /app/_build/dev/lib/gitgud_web/priv/graphql
+* creating /app/_build/dev/lib/gitgud_web/priv/graphql/schema.graphql
+warning: variable "repo" is unused (if the variable is not meant to be used, prefix it with an underscore)
+  lib/gitgud_web/controllers/release_controller.ex:99: GitGud.Web.ReleaseController.download/2
+
+warning: let is deprecated, please use :let instead
+  lib/gitgud_web/live/comment_form_live.html.heex:32: (file)
+
+warning: let is deprecated, please use :let instead
+  lib/gitgud_web/live/issue_form_live.html.heex:2: (file)
+
+warning: let is deprecated, please use :let instead
+  lib/gitgud_web/live/issue_live.html.heex:4: (file)
+
+warning: let is deprecated, please use :let instead
+  lib/gitgud_web/live/maintainer_search_form_live.html.heex:1: (file)
+
+warning: let is deprecated, please use :let instead
+  lib/gitgud_web/live/release_form_live.html.heex:3: (file)
+
+warning: Phoenix.Controller.get_flash/2 is deprecated. get_flash/2 is deprecated. Use Phoenix.Flash.get(@flash, key) instead
+Invalid call found at 4 locations:
+  lib/gitgud_web/templates/layout/app.html.eex:67: GitGud.Web.LayoutView."app.html"/1
+  lib/gitgud_web/templates/layout/app.html.eex:76: GitGud.Web.LayoutView."app.html"/1
+  lib/gitgud_web/templates/layout/hero.html.eex:22: GitGud.Web.LayoutView."hero.html"/1
+  lib/gitgud_web/templates/layout/hero.html.eex:31: GitGud.Web.LayoutView."hero.html"/1
+
+Generated gitgud_web app

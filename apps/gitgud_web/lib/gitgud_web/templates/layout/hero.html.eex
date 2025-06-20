@@ -19,7 +19,7 @@
 
   <body>
     <main class="hero">
-      <%= if info = get_flash(@conn, :info) do %>
+      <%= if info = Phoenix.Flash.get(@flash, :info) do %>
         <article class="message is-primary is-small is-fixed">
           <div class="message-header">
             <p>Info</p>
@@ -28,7 +28,7 @@
           <div class="message-body"><%= info %></div>
         </article>
       <% end %>
-      <%= if error = get_flash(@conn, :error) do %>
+        <%= if error = Phoenix.Flash.get(@flash, :error) do %>
         <article class="message is-danger is-small is-fixed">
           <div class="message-header">
             <p>Error</p>

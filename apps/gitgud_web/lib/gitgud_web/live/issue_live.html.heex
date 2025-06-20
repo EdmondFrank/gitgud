@@ -1,7 +1,7 @@
 <div class="columns issue">
   <div class="column is-12">
     <%= if @title_edit do %>
-      <.form let={f} for={@title_changeset} as={:issue} class="mb-3" phx-change="validate_title" phx-submit="update_title">
+      <.form :let={f} for={@title_changeset} as={:issue} class="mb-3" phx-change="validate_title" phx-submit="update_title">
         <div class="field is-grouped">
           <div class="control is-expanded">
             <%= text_input f, :title, class: "input" %>
