@@ -1,5 +1,7 @@
 #include "odb.h"
 #include "geef.h"
+#include "object.h"
+#include "oid.h"
 #include <string.h>
 #include <git2.h>
 

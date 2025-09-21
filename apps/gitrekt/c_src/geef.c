@@ -200,6 +200,7 @@ ERL_NIF_TERM
 geef_error_struct(ErlNifEnv *env, int code)
 {
 	ERL_NIF_TERM struct_term;
+	int map_result;
 	ERL_NIF_TERM keys[] = {
 		atoms.estruct,
 		atoms.ex,
@@ -234,9 +235,9 @@ geef_error_struct(ErlNifEnv *env, int code)
 		enif_make_int(env, code)
 	};
 
-	error = enif_make_map_from_arrays(env, keys, values, 4, &struct_term);
-	if (error < 0)
-		return geef_error_struct(env, error);
+	map_result = enif_make_map_from_arrays(env, keys, values, 4, &struct_term);
+	if (map_result < 0)
+		return geef_error_struct(env, map_result);
 
 	return enif_make_tuple2(env, atoms.error, struct_term);
 }

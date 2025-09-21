@@ -20,7 +20,7 @@ defmodule GitGud.Mixfile do
   def application do
     [
       mod: {GitGud.Application, []},
-      extra_applications: [:logger, :runtime_tools, :ssh]
+      extra_applications: [:logger, :runtime_tools, :ssh, :waffle]
     ]
   end
 
@@ -47,7 +47,9 @@ defmodule GitGud.Mixfile do
       {:plug_cowboy, "~> 2.5", only: :test},
       {:postgrex, "~> 0.16"},
       {:telemetry, "~> 1.1"},
-      {:libcluster, "~> 3.3"}
+      {:libcluster, "~> 3.3"},
+      {:waffle, "~> 1.1", optional: false},
+      {:waffle_ecto, "~> 0.0.10"}
     ]
   end
 
