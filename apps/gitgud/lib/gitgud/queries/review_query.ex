@@ -148,9 +148,9 @@ defmodule GitGud.ReviewQuery do
   @impl true
   def preload_query(query, [], _viewer), do: query
 
-  def preload_query(query, [preload|tail], viewer) do
+  def preload_query(query, [head|tail], viewer) do
     query
-    |> join_preload(preload, viewer)
+    |> join_preload(head, viewer)
     |> preload_query(tail, viewer)
   end
 
@@ -170,7 +170,7 @@ defmodule GitGud.ReviewQuery do
     |> preload([comments: c], [comments: c])
   end
 
-  defp join_preload(query, {parent, children} = preload, viewer) do
+  defp join_preload(query, {parent, children}, viewer) do
     query
     |> join_preload(parent, viewer)
     |> preload([{^parent, ^children}])
