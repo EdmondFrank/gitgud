@@ -135,7 +135,7 @@ defmodule GitGud.Web.RepoController do
           contributors: batch.contributors[repo.id] || 0
         }
       {:error, reason} ->
-        Logger.warn(reason)
+        Logger.warning(reason)
         %{
           branches: 0,
           tags: 0,

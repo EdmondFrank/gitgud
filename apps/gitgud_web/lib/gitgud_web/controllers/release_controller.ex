@@ -96,7 +96,7 @@ defmodule GitGud.Web.ReleaseController do
   @spec download(Plug.Conn.t, map) :: Plug.Conn.t
   def download(conn, %{"user_login" => user_login, "repo_name" => repo_name, "release_id" => release_id, "id" => id} = _params) do
     user = current_user(conn)
-    if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
+    if _repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
       if verified?(user) do
         release_id = String.to_integer(release_id)
         if release = ReleaseQuery.by_id(release_id, preload: [:attachments]) do

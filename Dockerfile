@@ -1,9 +1,9 @@
-ARG ELIXIR_VERSION=1.13.0
-ARG ERLANG_VERSION=24.0.5
-ARG ALPINE_VERSION=3.14.0
+ARG ELIXIR_VERSION=1.17.3
+ARG ERLANG_VERSION=27.1.2
+ARG ALPINE_VERSION=3.20.3
 ARG LINUX_VERSION=alpine-$ALPINE_VERSION
 
-FROM hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as build
+FROM docker.1ms.run/hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as build
 
 ENV MIX_ENV=prod
 ENV HEX_MIRROR="https://hexpm.upyun.com"
@@ -51,7 +51,7 @@ RUN cd apps/gitgud_web && mix assets.deploy
 
 RUN mix release
 
-FROM hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as app
+FROM docker.1ms.run/hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as app
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk add --no-cache libgit2 openssl openssh-keygen ncurses-libs imagemagick

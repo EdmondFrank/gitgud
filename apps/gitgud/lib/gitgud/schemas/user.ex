@@ -298,14 +298,4 @@ defmodule GitGud.User do
       end
     end || changeset
   end
-
-  defp gravatar_url(email) do
-    %URI{}
-    |> gravatar_base_url()
-    |> gravatar_email(email)
-    |> to_string()
-  end
-
-  defp gravatar_base_url(uri), do: %URI{uri|scheme: "https", host: "secure.gravatar.com", path: "/avatar"}
-  defp gravatar_email(uri, email), do: %URI{uri|path: Path.join(uri.path, Base.encode16(:crypto.hash(:md5, String.downcase(email.address)), case: :lower))}
 end

@@ -7,15 +7,26 @@ ifeq ($(OS),Windows_NT)
 	CFLAGS ?= -O2 -Wall -Wextra -Wno-unused-parameter -I$(ERLANG_PATH) -I$(INCLUDE_DIR)
 	LDFLAGS += -L$(LIB_DIR) -lgit2
 else
-	INCLUDE_DIR ?= /opt/homebrew/include
-	LIB_DIR ?= /opt/homebrew/lib
-	CFLAGS ?= -O2 -Wall -Wextra -Wno-unused-parameter -I$(ERLANG_PATH) -I$(INCLUDE_DIR)
+	CFLAGS ?= -O2 -Wall -Wextra -Wno-unused-parameter -I$(ERLANG_PATH)
 	CFLAGS += -fPIC
+
+	# Platform-specific settings
 	ifeq ($(shell uname),Darwin)
+		INCLUDE_DIR ?= /opt/homebrew/include
+		LIB_DIR ?= /opt/homebrew/lib
 		LDFLAGS += -dynamiclib -undefined dynamic_lookup
+	else ifeq ($(shell uname),Linux)
+		INCLUDE_DIR ?= /usr/include
+		LIB_DIR ?= /usr/lib
+		LDFLAGS += -Wl,--no-as-needed
 	else
+		# Default for other Unix-like systems
+		INCLUDE_DIR ?= /usr/local/include
+		LIB_DIR ?= /usr/local/lib
 		LDFLAGS += -Wl,--no-as-needed
 	endif
+
+	CFLAGS += -I$(INCLUDE_DIR)
 	LDFLAGS += -L$(LIB_DIR) -lgit2
 endif
 

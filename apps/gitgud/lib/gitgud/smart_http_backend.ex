@@ -209,10 +209,10 @@ defmodule GitGud.SmartHTTPBackend do
         {:error, :not_found}
       !String.ends_with?(repo_name, ".git") ->
         {:error, :not_found}
-        service not in ["git-receive-pack", "git-upload-pack",
-                         "git-lfs-transfer-verify", "git-lfs-transfer-download", "git-lfs-transfer-upload"] ->
+      service not in ["git-receive-pack", "git-upload-pack",
+                       "git-lfs-transfer-verify", "git-lfs-transfer-download", "git-lfs-transfer-upload"] ->
         {:error, :bad_request}
-      repo = RepoQuery.user_repo(user_login, String.slice(repo_name, 0..-5), viewer: conn.assigns[:current_user]) ->
+      repo = RepoQuery.user_repo(user_login, String.slice(repo_name, 0..-5//-1), viewer: conn.assigns[:current_user]) ->
         cond do
           authorized?(conn, repo, service) ->
             {:ok, repo}

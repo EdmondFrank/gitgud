@@ -24,7 +24,7 @@ defmodule GitGud.Web.FileFormatter do
   @doc """
   Format file size in human mode
   """
-  def fmt_size(size, units \\ ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'], suffix \\ "B") do
+  def fmt_size(size, units \\ ["", "K", "M", "G", "T", "P", "E", "Z"], suffix \\ "B") do
     if is_integer(size) do
       do_fmt_size(size / 1, units, suffix)
     else

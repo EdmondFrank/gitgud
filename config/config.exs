@@ -13,7 +13,7 @@ end
 config :logger,
   backends: [:console, {LoggerFileBackend, :error_log}, {LoggerFileBackend, :application_log}],
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: []
 
 
 config :logger, :application_log,

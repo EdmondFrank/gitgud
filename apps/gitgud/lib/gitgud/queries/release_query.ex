@@ -3,7 +3,7 @@ defmodule GitGud.ReleaseQuery do
   Conveniences for release related queries.
   """
 
-  @behavaviour GitGud.DBQueryable
+  @behaviour GitGud.DBQueryable
 
   alias GitGud.DB
   alias GitGud.DBQueryable

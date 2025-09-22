@@ -82,6 +82,6 @@ defmodule GitGud.Web.NavigationHelpers do
     end
   end
 
-  defp helper_controller(helper), do: raise ArgumentError, message: "invalid helper #{inspect helper}"
-  defp helper_name(controller), do: raise ArgumentError, message: "invalid controller #{inspect controller}"
+  defp helper_controller(helper), do: raise(ArgumentError, message: "invalid helper #{inspect helper}")
+  defp helper_name(controller), do: raise(ArgumentError, message: "invalid controller #{inspect controller}")
 end
