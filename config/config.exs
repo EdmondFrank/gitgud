@@ -11,10 +11,9 @@ end
 
 # Configures Elixir's Logger
 config :logger,
-  backends: [:console, {LoggerFileBackend, :error_log}, {LoggerFileBackend, :application_log}],
+  backends: [:console, {GitGud.FileLoggerBackend, :application_log}, {GitGud.FileLoggerBackend, :error_log}],
   format: "$time $metadata[$level] $message\n",
   metadata: []
-
 
 config :logger, :application_log,
   path: "log/application.log",
