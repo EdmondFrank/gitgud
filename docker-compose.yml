@@ -1,11 +1,9 @@
 version: "2.0"
 services:
   gitgud:
+    image: ccr.ccs.tencentyun.com/edmondfrank/gitfrank:latest
     restart: always
     container_name: gitgud
-    build:
-      context: .
-      dockerfile: Dockerfile
     env_file: .env
     volumes:
       - /home/ubuntu/data:/data
