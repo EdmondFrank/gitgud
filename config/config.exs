@@ -12,8 +12,9 @@ end
 # Configures Elixir's Logger
 config :logger,
   backends: [:console, {LoggerFileBackend, :error_log}, {LoggerFileBackend, :application_log}],
-  format: "$time $metadata[$level] $message\n",
-  metadata: []
+  format: "$time [$level] $message\n",
+  metadata: [],
+  erl_formatter: {GitGud.CustomLoggerFormatter, :handle_event}
 
 
 config :logger, :application_log,
