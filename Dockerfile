@@ -6,6 +6,7 @@ ARG LINUX_VERSION=alpine-$ALPINE_VERSION
 FROM docker.1ms.run/hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as build
 
 ENV MIX_ENV=prod
+ENV ERL_FLAGS="+JPperf true"
 ENV HEX_MIRROR="https://hexpm.upyun.com"
 ENV HEX_CDN="https://hexpm.upyun.com"
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
