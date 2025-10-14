@@ -405,6 +405,9 @@ defmodule GitGud.SmartHTTPBackend do
   end
 
   defp inflate_body(<<31, 139, 8, _rest::binary>> = body, :gzip), do: :zlib.gunzip(body)
+  defp inflate_body("", :gzip), do: ""
+  defp inflate_body(nil, :gzip), do: nil
+  defp inflate_body(body, :gzip) when is_binary(body), do: :zlib.gunzip(body)
   defp inflate_body(body, :deflate), do: :zlib.unzip(body)
   defp inflate_body(body, :none), do: body
 
