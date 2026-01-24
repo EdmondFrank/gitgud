@@ -45,7 +45,7 @@ defmodule GitRekt.WireProtocol.LfsAuthenticate do
       header: %{
         authorization: "Bearer #{token}"
       },
-      expires_at: Timex.now |> Timex.shift(hours: 24) |> DateTime.to_iso8601
+      expires_at: DateTime.utc_now() |> DateTime.add(24 * 3600, :second) |> DateTime.to_iso8601()
     }
 
     {%{handle|state: :done, caps: []}, lines, Jason.encode!(result)}

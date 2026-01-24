@@ -29,7 +29,8 @@ defmodule GitRekt.Mixfile do
     [
       {:elixir_make, "~> 0.6"},
       {:stream_split, "~> 0.1"},
-      {:telemetry, "~> 1.1"}
+      {:telemetry, "~> 1.1"},
+      {:jason, "~> 1.4"}
     ]
   end
 end

@@ -3,7 +3,7 @@ defmodule GitRekt.WireProtocol.LfsTransfer do
   Module implementing the `git-lfs-transfer` command.
   """
 
-  @behaviour GitReket.WireProtocol
+  @behaviour GitRekt.WireProtocol
 
   alias GitRekt.GitAgent
 
