@@ -144,7 +144,7 @@ defmodule GitRekt.WireProtocol do
   def __service__(:upload_pack), do: GitRekt.WireProtocol.UploadPack
   def __service__(:receive_pack), do: GitRekt.WireProtocol.ReceivePack
   def __service__(:lfs_transfer), do: GitRekt.WireProtocol.LfsTransfer
-  def __service__(:lfs_authenticate), do: GitRektnet.WireProtocol.LfsAuthenticate
+  def __service__(:lfs_authenticate), do: GitRekt.WireProtocol.LfsAuthenticate
 
   #
   # Helpers

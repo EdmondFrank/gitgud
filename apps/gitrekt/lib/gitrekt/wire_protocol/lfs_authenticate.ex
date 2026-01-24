@@ -3,7 +3,7 @@ defmodule GitRekt.WireProtocol.LfsAuthenticate do
   Module implementing the `git-lfs-authenticate` command.
   """
 
-  @behaviour GitReket.WireProtocol
+  @behaviour GitRekt.WireProtocol
 
   alias GitRekt.GitAgent
 
