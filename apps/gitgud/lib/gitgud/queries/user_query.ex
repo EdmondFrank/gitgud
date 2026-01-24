@@ -92,9 +92,12 @@ defmodule GitGud.UserQuery do
   @doc """
   Returns first user inserted_at.
   """
-  @spec first_at() :: NaiveDateTime
+  @spec first_at() :: NaiveDateTime.t | nil
   def first_at() do
-    DB.one(query(:users_query_first)).inserted_at
+    case DB.one(query(:users_query_first)) do
+      nil -> nil
+      user -> user.inserted_at
+    end
   end
 
   #

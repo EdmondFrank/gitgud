@@ -49,12 +49,14 @@
             </span>
             <%= @site_stats.users %> Users registered
           </li>
-          <li>
-            <span class="icon has-text-grey">
-              <i class="fa fa-clock"></i>
-            </span>
-            Created since <%= datetime_format(@site_stats.first_at, "{relative}") %>
-          </li>
+          <%= if @site_stats.first_at do %>
+            <li>
+              <span class="icon has-text-grey">
+                <i class="fa fa-clock"></i>
+              </span>
+              Created since <%= datetime_format(@site_stats.first_at, "{relative}") %>
+            </li>
+          <% end %>
         </ul>
       </div>
     </div>
