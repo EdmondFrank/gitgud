@@ -15,7 +15,7 @@ defmodule GitGud.Web.CodebaseController do
   alias GitGud.RepoQuery
   alias GitGud.IssueQuery
 
-  plug :put_layout, :repo
+  plug :put_layout, html: :repo
   plug :ensure_authenticated when action in [:new, :create, :edit, :update, :confirm_delete, :delete]
 
   action_fallback GitGud.Web.FallbackController
@@ -68,7 +68,7 @@ defmodule GitGud.Web.CodebaseController do
                  {:ok, repo} <- GitRepo.push(repo, [{:update, reference_oid, commit_oid, commit_update_ref}]) do
               conn
               |> put_flash(:info, "File #{blob_name} created.")
-              |> redirect(to: Routes.codebase_path(conn, :blob, user_login, repo.name, Path.basename(commit_update_ref), blob_path))
+              |> redirect(to: ~p"/#{user_login}/#{repo.name}/blob/#{Path.basename(commit_update_ref)}/#{blob_path}")
             else
               {:error, {:already_exist, _tree_entry}} ->
                 changeset = Ecto.Changeset.add_error(changeset, :name, "has already been taken")
@@ -157,7 +157,7 @@ defmodule GitGud.Web.CodebaseController do
                        {:ok, repo} <- GitRepo.push(repo, [{:update, reference_oid, commit_oid, commit_update_ref}]) do
                     conn
                     |> put_flash(:info, "File #{blob_name} updated.")
-                    |> redirect(to: Routes.codebase_path(conn, :blob, user_login, repo.name, Path.basename(commit_update_ref), blob_path))
+                    |> redirect(to: ~p"/#{user_login}/#{repo.name}/blob/#{Path.basename(commit_update_ref)}/#{blob_path}")
                   end
                 {:changes, new_name} ->
                   changeset = Ecto.Changeset.add_error(changeset, :name, "Cannot rename #{changeset.data.name} to #{new_name}")
@@ -244,7 +244,7 @@ defmodule GitGud.Web.CodebaseController do
                    {:ok, repo} <- GitRepo.push(repo, [{:update, reference_oid, commit_oid, commit_update_ref}]) do
                 conn
                 |> put_flash(:info, "File #{List.last(blob_path)} deleted.")
-                |> redirect(to: Routes.codebase_path(conn, :tree, user_login, repo.name, Path.basename(commit_update_ref), tree_path))
+                |> redirect(to: ~p"/#{user_login}/#{repo.name}/tree/#{Path.basename(commit_update_ref)}/#{tree_path}")
               end
             else
               conn = put_flash(conn, :error, "Something went wrong! Please check error(s) below.")

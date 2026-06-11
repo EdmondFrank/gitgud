@@ -14,7 +14,7 @@ defmodule GitGud.Web.ReleaseController do
 
 
   plug :ensure_authenticated when action in [:new, :create]
-  plug :put_layout, :repo
+  plug :put_layout, html: :repo
 
   action_fallback GitGud.Web.FallbackController
 
@@ -124,7 +124,7 @@ defmodule GitGud.Web.ReleaseController do
           {:ok, release} ->
             conn
             |> put_flash(:info, "Release ##{release.tag_version} created.")
-            |> redirect(to: Routes.release_path(conn, :index, user_login, repo_name))
+            |> redirect(to: ~p"/#{user_login}/#{repo_name}/releases")
           {:error, changeset} ->
             conn
             |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -149,7 +149,7 @@ defmodule GitGud.Web.ReleaseController do
             {:ok, release} ->
               conn
               |> put_flash(:info, "Release ##{release.tag_version} updated.")
-              |> redirect(to: Routes.release_path(conn, :show, user_login, repo_name, release_id))
+              |> redirect(to: ~p"/#{user_login}/#{repo_name}/releases/#{release_id}")
             {:error, changeset} ->
               conn
               |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -179,7 +179,7 @@ defmodule GitGud.Web.ReleaseController do
           release = Release.delete!(release)
           conn
           |> put_flash(:info, "Release '#{release.tag_version}' deleted.")
-          |> redirect(to: Routes.release_path(conn, :index, repo.owner_login, repo))
+          |> redirect(to: ~p"/#{repo.owner_login}/#{repo.name}/releases")
         end  || {:error, :not_found}
       end || {:error, :forbidden}
     end || {:error, :not_found}

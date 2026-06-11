@@ -11,7 +11,7 @@ defmodule GitGud.Web.GPGKeyController do
   import GitGud.Web.GPGKeyView, only: [format_key_id: 1]
 
   plug :ensure_authenticated
-  plug :put_layout, :user_settings
+  plug :put_layout, html: :user_settings
 
   action_fallback GitGud.Web.FallbackController
 
@@ -43,7 +43,7 @@ defmodule GitGud.Web.GPGKeyController do
       {:ok, gpg_key} ->
         conn
         |> put_flash(:info, "GPG key 0x#{format_key_id(gpg_key.key_id)} added.")
-        |> redirect(to: Routes.gpg_key_path(conn, :index))
+        |> redirect(to: ~p"/settings/gpg")
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -63,7 +63,7 @@ defmodule GitGud.Web.GPGKeyController do
       gpg_key = GPGKey.delete!(gpg_key)
       conn
       |> put_flash(:info, "GPG key 0x#{format_key_id(gpg_key.key_id)} deleted.")
-      |> redirect(to: Routes.gpg_key_path(conn, :index))
+      |> redirect(to: ~p"/settings/gpg")
     else
       {:error, :bad_request}
     end

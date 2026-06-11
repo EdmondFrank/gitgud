@@ -15,7 +15,7 @@ defmodule GitGud.Web.MaintainerController do
   plug :ensure_authenticated
   plug :scrub_params, "maintainer" when action in [:create, :update, :delete]
 
-  plug :put_layout, :repo_settings
+  plug :put_layout, html: :repo_settings
 
   action_fallback GitGud.Web.FallbackController
 
@@ -51,7 +51,7 @@ defmodule GitGud.Web.MaintainerController do
             {:ok, _maintainer} ->
               conn
               |> put_flash(:info, "Maintainer '#{user.login}' added.")
-              |> redirect(to: Routes.maintainer_path(conn, :index, user_login, repo_name))
+              |> redirect(to: ~p"/#{user_login}/#{repo_name}/settings/maintainers")
             {:error, changeset} ->
               {user_error, errors} = Keyword.pop(changeset.errors, :user_id)
               changeset = if user_error, do: %{changeset|errors: [{:user_login, user_error}|errors]}, else: changeset
@@ -94,11 +94,11 @@ defmodule GitGud.Web.MaintainerController do
               maintainer = Maintainer.update_permission!(maintainer, maintainer_params["permission"])
               conn
               |> put_flash(:info, "Maintainer '#{maintainer.user.login}' permission set to '#{maintainer.permission}'.")
-              |> redirect(to: Routes.maintainer_path(conn, :index, user_login, repo_name))
+              |> redirect(to: ~p"/#{user_login}/#{repo_name}/settings/maintainers")
             else
               conn
               |> put_flash(:info, "Maintainer '#{maintainer.user.login}' permission already set to '#{maintainer.permission}'.")
-              |> redirect(to: Routes.maintainer_path(conn, :index, user_login, repo_name))
+              |> redirect(to: ~p"/#{user_login}/#{repo_name}/settings/maintainers")
             end
           end
         end || {:error, :bad_request}
@@ -119,7 +119,7 @@ defmodule GitGud.Web.MaintainerController do
             maintainer = Maintainer.delete!(maintainer)
             conn
             |> put_flash(:info, "Maintainer '#{maintainer.user.login}' deleted.")
-            |> redirect(to: Routes.maintainer_path(conn, :index, user_login, repo_name))
+            |> redirect(to: ~p"/#{user_login}/#{repo_name}/settings/maintainers")
           end
         end || {:error, :bad_request}
       end || {:error, :forbidden}

@@ -9,7 +9,7 @@ defmodule GitGud.Web.SSHKeyController do
   alias GitGud.SSHKey
 
   plug :ensure_authenticated
-  plug :put_layout, :user_settings
+  plug :put_layout, html: :user_settings
 
   action_fallback GitGud.Web.FallbackController
 
@@ -41,7 +41,7 @@ defmodule GitGud.Web.SSHKeyController do
       {:ok, ssh_key} ->
         conn
         |> put_flash(:info, "SSH key '#{ssh_key.name}' added.")
-        |> redirect(to: Routes.ssh_key_path(conn, :index))
+        |> redirect(to: ~p"/settings/ssh")
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -61,7 +61,7 @@ defmodule GitGud.Web.SSHKeyController do
       ssh_key = SSHKey.delete!(ssh_key)
       conn
       |> put_flash(:info, "SSH key '#{ssh_key.name}' deleted.")
-      |> redirect(to: Routes.ssh_key_path(conn, :index))
+      |> redirect(to: ~p"/settings/ssh")
     else
       {:error, :bad_request}
     end

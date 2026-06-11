@@ -11,7 +11,7 @@ defmodule GitGud.Web.IssueController do
   alias GitGud.Comment
 
   plug :ensure_authenticated when action in [:new, :create]
-  plug :put_layout, :repo
+  plug :put_layout, html: :repo
 
   action_fallback GitGud.Web.FallbackController
 
@@ -66,7 +66,7 @@ defmodule GitGud.Web.IssueController do
           {:ok, issue} ->
             conn
             |> put_flash(:info, "Issue ##{issue.number} created.")
-            |> redirect(to: Routes.issue_path(conn, :show, user_login, repo_name, issue.number))
+            |> redirect(to: ~p"/#{user_login}/#{repo_name}/issues/#{issue.number}")
           {:error, changeset} ->
             conn
             |> put_flash(:error, "Something went wrong! Please check error(s) below.")

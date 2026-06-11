@@ -1,0 +1,52 @@
+<div class="columns">
+  <div class="column is-full">
+    <div class="card commit">
+      <%= with {message_title, message_body} <- commit_message_format(@repo, @commit_info.message) do %>
+        <header class="card-header ellipsis">
+          <p class="card-header-title"><span><%= message_title %></span></p>
+          <div class="card-header-icon">
+            <div class="buttons">
+              <button class="commit-oid button is-small is-dark is-inverted has-text-weight-bold">
+                <span class="is-family-monospace"><%= oid_fmt(@commit.oid) %></span>
+              </button>
+              <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@commit}/" } class="button is-small is-link is-inverted">
+                <span class="icon">
+                  <i class="fa fa-history"></i>
+                </span>
+              </a>
+              <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@commit}/" } class="button is-small is-link is-inverted">
+                <span class="icon">
+                  <i class="fa fa-code"></i>
+                </span>
+              </a>
+            </div>
+          </div>
+        </header>
+        <div class="card-content">
+          <div class="commit-parents">
+            <div class="field is-grouped">
+              <div class="control">
+                <%= if parent_count = Enum.count(@commit_info.parents) do %>
+                  <label class="label"><%= parent_count %> parent<%= if parent_count > 1 do %>s<% end %>:</label>
+                <% end %>
+              </div>
+              <div class="control">
+                <div class="buttons">
+                  <%= for parent <- @commit_info.parents do %>
+                    <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{parent}" } class="button is-small is-link is-inverted has-text-weight-bold"><%= parent %></a>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+          <%= _commit_signature(assigns) %>
+          <%= if message_body do %>
+            <div class="log-message"><%= message_body %></div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<%= live_render(@conn, GitGud.Web.CommitDiffLive, session: %{"repo_id" => @repo.id, "commit_oid" => @commit.oid}) %>

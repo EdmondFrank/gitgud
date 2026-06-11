@@ -15,8 +15,8 @@ defmodule GitGud.Web.RepoController do
   require Logger
 
   plug :ensure_authenticated when action != :index
-  plug :put_layout, :user_profile when action == :index
-  plug :put_layout, :repo_settings when action in [:edit, :update, :delete]
+  plug :put_layout, [html: :user_profile] when action == :index
+  plug :put_layout, [html: :repo_settings] when action in [:edit, :update, :delete]
 
   action_fallback GitGud.Web.FallbackController
 
@@ -59,7 +59,7 @@ defmodule GitGud.Web.RepoController do
         {:ok, repo} ->
           conn
           |> put_flash(:info, "Repository '#{repo.owner_login}/#{repo.name}' created.")
-          |> redirect(to: Routes.codebase_path(conn, :show, user, repo))
+          |> redirect(to: ~p"/#{user.login}/#{repo.name}")
         {:error, changeset} ->
           conn
           |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -93,7 +93,7 @@ defmodule GitGud.Web.RepoController do
           {:ok, repo} ->
             conn
             |> put_flash(:info, "Repository '#{repo.owner_login}/#{repo.name}' updated.")
-            |> redirect(to: Routes.repo_path(conn, :edit, repo.owner_login, repo))
+            |> redirect(to: ~p"/#{repo.owner_login}/#{repo.name}/settings")
           {:error, changeset} ->
             conn
             |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -115,7 +115,7 @@ defmodule GitGud.Web.RepoController do
         repo = Repo.delete!(repo)
         conn
         |> put_flash(:info, "Repository '#{repo.owner_login}/#{repo.name}' deleted.")
-        |> redirect(to: Routes.user_path(conn, :show, user))
+        |> redirect(to: ~p"/#{user.login}")
       end || {:error, :forbidden}
     end || {:error, :not_found}
   end

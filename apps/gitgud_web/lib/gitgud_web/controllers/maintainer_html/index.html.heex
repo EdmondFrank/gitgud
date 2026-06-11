@@ -1,0 +1,67 @@
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">Maintainers</h2>
+    </div>
+  </div>
+</div>
+
+<table class="table is-fullwidth">
+  <tbody>
+    <%= for maintainer <- @maintainers do %>
+      <tr>
+        <td class="is-vcentered">
+          <a href={ ~p"/#{maintainer.user}" } class="tag user"><%= maintainer.user %></a>
+        </td>
+        <%= if maintainer.user_id != @repo.owner_id do %>
+          <td class="is-narrow">
+            <%= form_for @conn, ~p"/#{@repo.owner_login}/#{@repo.name}/settings/maintainers", [method: :put, as: :maintainer], fn f -> %>
+              <%= hidden_input(f, :id, value: maintainer.id) %>
+              <div class="field">
+                <div class="field is-grouped">
+                  <div class="control">
+                    <div class="select">
+                      <%= permission_select f, :permission, maintainer %>
+                      <%= error_tag f, :permission %>
+                    </div>
+                  </div>
+                  <div class="control">
+                    <%= submit "Save", class: "button is-link" %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </td>
+          <td class="is-narrow is-vcentered">
+            <%= form_for @conn, ~p"/#{@repo.owner_login}/#{@repo.name}/settings/maintainers", [method: :delete, as: :maintainer], fn f -> %>
+              <div class="field">
+                <%= hidden_input(f, :id, value: maintainer.id) %>
+                <button type="submit" class="delete"></button>
+              </div>
+            <% end %>
+          </td>
+        <% else %>
+          <td class="is-narrow">
+            <div class="field">
+              <div class="field is-grouped">
+                <div class="control">
+                  <div class="select">
+                    <select disabled="disabled">
+                      <option>admin</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="control">
+                  <%= submit "Save", class: "button", disabled: true %>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="is-narrow"></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<%= live_render(@conn, GitGud.Web.MaintainerSearchFormLive, session: %{"repo_id" => @repo.id}) %>

@@ -1,0 +1,40 @@
+defmodule GitGud.Web.OAuth2HTML do
+  @moduledoc false
+  use GitGud.Web, :html
+
+  import Phoenix.HTML.Tag
+  import Phoenix.HTML.Link
+
+  embed_templates "oauth2_html/*"
+
+  @spec signin_button(Plug.Conn.t(), binary, keyword) :: binary
+  def signin_button(conn, provider, attrs \\ []) do
+    attrs
+    |> Keyword.put(:to, "/auth/#{provider}")
+    |> Keyword.put_new(:class, "button is-small #{provider}")
+    |> link(
+      do: [
+        content_tag(:span, [class: "icon"], do: provider_icon(provider, conn)),
+        content_tag(:span, provider_name(provider))
+      ]
+    )
+  end
+
+  @spec provider_name(binary) :: binary
+  def provider_name("github"), do: "GitHub"
+  def provider_name("gitlab"), do: "GitLab"
+  def provider_name("gitee"), do: "Gitee"
+
+  @spec provider_icon(binary, Plug.Conn.t()) :: binary
+  def provider_icon("gitee", conn),
+    do:
+      content_tag(:img, "",
+        class: "fab fa-lg fa-gitee",
+        src: "/images/gitee.png"
+      )
+
+  def provider_icon(provider, _conn), do: content_tag(:i, "", class: "fab fa-lg fa-#{provider}")
+
+  @spec title(atom, map) :: binary
+  def title(_action, _assigns), do: "Settings · OAuth2.0"
+end

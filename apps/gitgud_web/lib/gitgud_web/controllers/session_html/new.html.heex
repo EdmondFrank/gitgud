@@ -1,0 +1,57 @@
+<div class="columns">
+  <div class="column is-4 is-offset-4">
+    <div class="box">
+      <div class="is-pulled-right">
+        <a href={ ~p"/" }>
+          <img src={ ~p"/images/logo.svg" } alt="" width="72" height="72" />
+        </a>
+      </div>
+
+      <h1 class="title has-text-grey-lighter">Login</h1>
+
+      <%= form_for @changeset, ~p"/login", [as: :session], fn f -> %>
+        <%= if redirect_path = assigns[:redirect] do %>
+          <%= hidden_input f, :redirect, value: redirect_path %>
+        <% end %>
+
+        <div class="field">
+          <label class="label">Username or Email</label>
+          <div class="control">
+            <%= text_input f, :login_or_email, class: "input" %>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">Password</label>
+          <div class="control">
+            <%= password_input f, :password, class: "input" %>
+          </div>
+        </div>
+
+        <div class="field is-grouped">
+          <div class="control">
+            <%= submit "Login", class: "button is-success" %>
+          </div>
+          <div class="control">
+            <a class="button is-text" href={ ~p"/password/reset" }>Forgot password?</a>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="is-divider" data-content="OR"></div>
+
+      <div class="buttons is-centered">
+        <%= GitGud.Web.OAuth2View.signin_button(@conn, "github") %>
+        <%= GitGud.Web.OAuth2View.signin_button(@conn, "gitlab") %>
+        <%= GitGud.Web.OAuth2View.signin_button(@conn, "gitee") %>
+      </div>
+
+      <hr />
+
+      <p class="is-size-7">
+        Don't have an account? <a href={ ~p"/register" }>Sign up</a>
+      </p>
+
+    </div>
+  </div>
+</div>

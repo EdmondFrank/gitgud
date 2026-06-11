@@ -1,0 +1,11 @@
+<div class="columns">
+  <aside class="menu column is-one-fifth">
+    <ul class="menu-list">
+      <li><%= navigation_item @conn, :repo, [only: [:edit, :update]], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings" do %>Settings<% end %></li>
+      <li><%= navigation_item @conn, :maintainer, [], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings/maintainers" do %>Maintainers<% end %></li>
+    </ul>
+  </aside>
+  <div class="column">
+    <%= @inner_content %>
+  </div>
+</div>

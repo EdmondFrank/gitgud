@@ -1,0 +1,83 @@
+<div class="level">
+    <div class="level-left">
+        <div class="level-item">
+            <h2 class="subtitle">Releases</h2>
+        </div>
+    </div>
+    <%= if verified?(@conn) do %>
+    <div class="level-right">
+        <div class="level-item">
+            <%= if verified?(@current_user) && authorized?(@current_user, @repo, :admin) do %>
+            <a class="button is-success" href={ ~p"/#{@repo.owner_login}/#{@repo.name}/releases/new" }>New</a>
+            <% else %>
+            <p class="button tooltip is-success" data-tooltip="Make sure you have permission to manage this repository" disabled>New</p>
+            <% end %>
+        </div>
+    </div>
+    <% end %>
+</div>
+<%= with page <- paginate(@conn, @releases) do %>
+<table class="table tags-table is-fullwidth">
+    <tbody>
+        <%= unless Enum.empty?(page.slice) do %>
+        <%= for release <- page.slice do %>
+        <tr>
+            <td>
+                <div class="title has-text-weight-bold">
+                    <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/releases/#{release.id}" }><%= release.title %></a>
+                </div>
+                <span>
+                    <div>
+                        <%= user_avatar(release.author, size: 18) %>
+                        <a href={ ~p"/#{release.author.login}" } class="tag is-white user">
+                            <span class="tag is-light"><%= release.author.name %></span>
+                        </a>
+                        <%= if release.release_type == "normal" do %>
+                        <span class="tag is-primary">Release: <%= release.tag_version %></span>
+                        <% else %>
+                        <span class="tag is-light">Preview Release: <%= release.tag_version %></span>
+                        <% end %>
+                        <span class="tag is-light">
+                            <span class="icon">
+                                <i class="fas fa-link"></i>
+                            </span>
+                            <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{release.revision}" }>
+                                <%= String.slice(release.revision, 0, 7) %>
+                            </a>
+                        </span>
+                    </div>
+                    <div class="level-right">
+                        <div class="level-item">
+                            <span class="tag is-light">
+                                <%= datetime_format(release.updated_at, "{relative}") %>
+                            </span>
+                        </div>
+                        <div class="level-item">
+                            <div class="buttons is-pulled-right">
+                                <%= if authorized?(@conn, @repo, :admin) do %>
+                                <a href={ ~p"/#{@repo.owner_login}/#{@repo.name}/releases/#{release.id}/edit" } class="button is-small">Edit</a>
+                                <%= form_for @conn, ~p"/#{@repo.owner_login}/#{@repo.name}/releases/#{release.id}", [method: :delete, style: "display: inline"], fn _f -> %>
+                                  <%= submit "Delete", class: "button is-danger is-small", data: [confirm: "Once you delete a release, there is no going back.\nPlease be certain."] %>
+                                <% end %>
+                                <% end %>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="content"><%= markdown_safe(truncate(release.description)) %></div>
+                </span>
+            </td>
+        </tr>
+        <% end %>
+        <% else %>
+        <tr>
+            <td colspan="2">
+                <article class="message is-light">
+                    <div class="message-body">This repository has no releases.</div>
+                </article>
+            </td>
+        </tr>
+        <% end %>
+    </tbody>
+</table>
+<%= pagination(@conn, page) %>
+<% end %>

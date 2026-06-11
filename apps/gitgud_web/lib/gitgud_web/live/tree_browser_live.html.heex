@@ -5,25 +5,25 @@
     <div class="tabs is-toggle is-fullwidth">
       <ul>
         <li>
-          <%= live_redirect to: Routes.codebase_path(@socket, :history, @repo.owner_login, @repo, @revision, []) do %>
+          <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@revision}/" do %>
             <span class="icon"><i class="fa fa-layer-group" aria-hidden="true"></i></span>
             <span>Commits&nbsp;&nbsp;<span class="tag"><%= @stats[:commits] || 0 %></span></span>
           <% end %>
         </li>
         <li>
-          <%= live_redirect to: Routes.codebase_path(@socket, :branches, @repo.owner_login, @repo) do %>
+          <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/branches" do %>
             <span class="icon"><i class="fa fa-code-branch" aria-hidden="true"></i></span>
             <span>Branches&nbsp;&nbsp;<span class="tag"><%= @stats[:branches] || 0 %></span></span>
           <% end %>
         </li>
         <li>
-          <%= live_redirect to: Routes.codebase_path(@socket, :tags, @repo.owner_login, @repo) do %>
+          <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/tags" do %>
             <span class="icon"><i class="fa fa-tags" aria-hidden="true"></i></span>
             <span>Tags&nbsp;&nbsp;<span class="tag"><%= @stats[:tags] || 0 %></span></span>
           <% end %>
         </li>
         <li>
-          <%= live_redirect to: Routes.release_path(@socket, :index, @repo.owner_login, @repo) do %>
+          <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/releases" do %>
             <span class="icon"><i class="fa fa-archive" aria-hidden="true"></i></span>
             <span>Releases&nbsp;&nbsp;<span class="release"><%= @stats[:releases] || 0 %></span></span>
           <% end %>
@@ -57,11 +57,11 @@
         <nav id="tree-breadcrumb" class="breadcrumb" aria-label="breadcrumbs" phx-hook="TreeBreadcrumb">
           <ul>
             <li>
-              <%= live_patch @repo.name, to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @revision, []) %>
+              <%= live_patch @repo.name, to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@revision}/" %>
             </li>
             <%= unless Enum.empty?(@tree_path) do %>
               <%= for {path, index} <- Enum.with_index(Enum.drop(@tree_path, -1), 1) do %>
-                <li><%= live_patch path, to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @revision, Enum.take(@tree_path, index)) %></li>
+                <li><%= live_patch path, to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@revision}/#{Enum.take(@tree_path, index)}" %></li>
               <% end %>
               <li class="is-active"><a><%= List.last(@tree_path) %></a></li>
             <% end %>
@@ -79,7 +79,7 @@
               <div class="control"><button class="button ssh-clone-button">SSH</button></div>
             <% end %>
             <div class="control http-clone">
-              <input class="input" type="text" value={Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) <> ".git"} readonly />
+              <input class="input" type="text" value={url(~p"/#{@repo.owner_login}/#{@repo.name}") <> ".git"} readonly />
             </div>
             <%= if @current_user do %>
               <div class="control ssh-clone is-hidden">
@@ -103,12 +103,12 @@
       <% end %>
       <%= if revision_type(@revision) == :branch && authorized?(@current_user, @repo, :push) do %>
         <div class="level-item">
-          <%= live_redirect "New", to: Routes.codebase_path(@socket, :new, @repo.owner_login, @repo.name, @revision, @tree_path), class: "button" %>
+          <%= live_redirect "New", to: ~p"/#{@repo.owner_login}/#{@repo.name}/new/#{@revision}/#{@tree_path}", class: "button" %>
         </div>
       <% end %>
       <%= unless Enum.empty?(@tree_path) do %>
         <div class="level-item">
-          <%= live_redirect "History", to: Routes.codebase_path(@socket, :history, @repo.owner_login, @repo.name, @revision, @tree_path), class: "button" %>
+          <%= live_redirect "History", to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@revision}/#{@tree_path}", class: "button" %>
         </div>
       <% end %>
     </div>
@@ -121,11 +121,11 @@
           <%= if @tree_commit_info do %>
             <%= with %{author: _author, committer: committer} <- Map.take(@tree_commit_info, [:author, :committer]) do %>
               <%= if Map.has_key?(committer, :id) do %>
-                <a href={Routes.user_path(@socket, :show, committer)} class="tag is-white user"><%= committer %></a>
+                <a href={~p"/#{committer}"} class="tag is-white user"><%= committer %></a>
               <% else %>
                 <a href={"mailto:#{committer.email}"} class="tag tooltip is-white has-text-black" data-tooltip={committer.email}><%= committer.name %></a>
               <% end %>
-              <%= live_redirect commit_message_title(@tree_commit_info.message), to: Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, oid_fmt(@tree_commit_info.oid)), class: "has-text-dark" %>
+              <%= live_redirect commit_message_title(@tree_commit_info.message), to: ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{oid_fmt(@tree_commit_info.oid)}", class: "has-text-dark" %>
             <% end %>
           <% else %>
             <span class="tag placeholder is-white"></span>
@@ -146,12 +146,12 @@
           <td>
             <%= case tree_entry.type do %>
               <% :tree -> %>
-                <%= live_patch to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @revision, @tree_path ++ [tree_entry.name]) do %>
+                <%= live_patch to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@revision}/#{@tree_path ++ [tree_entry.name]}" do %>
                   <span class="icon"><i class="fa fa-folder"></i></span>
                   <span><%= tree_entry.name %></span>
                 <% end %>
               <% :blob -> %>
-                <%= live_redirect to: Routes.codebase_path(@socket, :blob, @repo.owner_login, @repo, @revision, @tree_path ++ [tree_entry.name]) do %>
+                <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/blob/#{@revision}/#{@tree_path ++ [tree_entry.name]}" do %>
                   <span class="icon"><i class="fa fa-file"></i></span>
                   <span><%= tree_entry.name %></span>
                 <% end %>
@@ -162,7 +162,7 @@
           </td>
           <td class="is-fullwidth">
             <%= if commit_info do %>
-              <%= live_redirect commit_message_title(commit_info.message), to: Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, oid_fmt(commit_info.oid)), class: "has-text-dark" %>
+              <%= live_redirect commit_message_title(commit_info.message), to: ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{oid_fmt(commit_info.oid)}", class: "has-text-dark" %>
             <% end %>
           </td>
           <td class="has-text-right has-text-dark">
@@ -180,7 +180,7 @@
       <header class="card-header">
         <div class="card-header-title"><%= filename %></div>
           <p class="card-header-icon buttons">
-            <%= live_redirect to: Routes.codebase_path(@socket, :blob, @repo.owner_login, @repo, @revision, @tree_path ++ [filename]), class: "button is-small is-link is-inverted" do %>
+            <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/blob/#{@revision}/#{@tree_path ++ [filename]}", class: "button is-small is-link is-inverted" do %>
               <span class="icon"><i class="fa fa-code"></i></span>
             <% end %>
           </p>
@@ -203,7 +203,7 @@
           <div class="control"><button class="button ssh-clone-button">SSH</button></div>
         <% end %>
       <div class="control http-clone">
-        <input class="input" type="text" value={Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) <> ".git"} readonly />
+        <input class="input" type="text" value={url(~p"/#{@repo.owner_login}/#{@repo.name}") <> ".git"} readonly />
       </div>
       <%= if @current_user do %>
         <div class="control ssh-clone is-hidden">
@@ -230,12 +230,12 @@
       git init
       git add README.md
       git commit -m "first commit"
-      git remote add origin <span class="repo-url"><%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git</span>
+      git remote add origin <span class="repo-url"><%= url(~p"/#{@repo.owner_login}/#{@repo.name}") %>.git</span>
       git push -u origin <%= @repo.default_branch %>
       </pre>
       <p>or push an existing repository from the command line</p>
       <pre>
-        git remote add origin <span class="repo-url"><%= Routes.codebase_url(@socket, :show, @repo.owner_login, @repo) %>.git</span>
+        git remote add origin <span class="repo-url"><%= url(~p"/#{@repo.owner_login}/#{@repo.name}") %>.git</span>
         git push -u origin <%= @repo.default_branch %>
       </pre>
     </div>

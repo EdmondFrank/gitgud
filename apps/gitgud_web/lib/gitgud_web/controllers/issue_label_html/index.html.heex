@@ -1,0 +1,72 @@
+<h2 class="subtitle">Issue labels</h2>
+
+<%= if authorized?(@conn, @repo, :admin) do %>
+  <%= form_for @changeset, ~p"/#{@repo.owner_login}/#{@repo.name}/issues/labels", [as: :repo], fn f -> %>
+    <table id="issue-label-configurator" class="table issue-label-table is-fullwidth">
+      <tbody>
+        <%= inputs_for f, :issue_labels, fn fl -> %>
+          <tr>
+            <td><%= label_button(:p, fl.data) %></td>
+            <td>
+              <div class="field is-grouped is-pulled-right">
+                <div class="control">
+                  <div class="field color-picker has-addons">
+                    <div class="control">
+                      <%= text_input fl, :name, class: "input" %>
+                    </div>
+                    <div class="control">
+                      <%= color_picker(fl.data) %>
+                      <%= hidden_input fl, :color %>
+                    </div>
+                  </div>
+                </div>
+                <div class="control">
+                  <a class="button is-white is-inverted is-link" data-label-id={ input_id(fl, :id) }>
+                    <span class="icon">
+                      <i class="fa fa-times"></i>
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>
+            <div class="field is-grouped">
+              <div class="control">
+                <%= submit "Update labels", class: "button is-link", disabled: true %>
+              </div>
+              <div class="control">
+                <button type="reset" class="button is-light" disabled>Cancel</button>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="field is-pulled-right">
+              <div class="control">
+                <a id="add-label" class="button is-white is-inverted is-link">
+                  <span class="icon">
+                    <i class="fa fa-plus"></i>
+                  </span>
+                </a>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  <% end %>
+<% else %>
+    <table class="table is-fullwidth">
+      <tbody>
+        <%= for label <- @repo.issue_labels do %>
+          <tr>
+            <td><%= label_button(label) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+<% end %>

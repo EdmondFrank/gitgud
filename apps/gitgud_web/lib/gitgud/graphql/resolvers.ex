@@ -26,7 +26,7 @@ defmodule GitGud.GraphQL.Resolvers do
   alias Absinthe.Relay.Connection
 
   alias GitGud.GraphQL.Schema
-  alias GitGud.Web.Router.Helpers, as: Routes
+
 
   import Ecto.Query
 
@@ -114,19 +114,19 @@ defmodule GitGud.GraphQL.Resolvers do
   """
   @spec url(map, %{}, Absinthe.Resolution.t) :: {:ok, binary} | {:error, term}
   def url(%User{login: login} = _resource, %{} = _args, _info) do
-    {:ok, Routes.user_url(GitGud.Web.Endpoint, :show, login)}
+    {:ok, "/#{login}"}
   end
 
   def url(%Repo{} = repo, %{} = _args, _info) do
-    {:ok, Routes.codebase_url(GitGud.Web.Endpoint, :show, repo.owner_login, repo)}
+    {:ok, "/#{repo.owner_login}/#{repo.name}"}
   end
 
   def url(%GitRef{name: name} = _reference, %{} = _args, %Absinthe.Resolution{context: ctx} = _info) do
-    {:ok, Routes.codebase_url(GitGud.Web.Endpoint, :tree, ctx.repo.owner_login, ctx.repo, name, [])}
+    {:ok, "/#{ctx.repo.owner_login}/#{ctx.repo.name}/tree/#{name}"}
   end
 
   def url(%GitCommit{oid: oid} = _commit, %{} = _args, %Absinthe.Resolution{context: ctx} = _info) do
-    {:ok, Routes.codebase_url(GitGud.Web.Endpoint, :commit, ctx.repo.owner_login, ctx.repo, oid_fmt(oid))}
+    {:ok, "/#{ctx.repo.owner_login}/#{ctx.repo.name}/commit/#{oid_fmt(oid)}"}
   end
 
   @doc """
@@ -605,7 +605,7 @@ defmodule GitGud.GraphQL.Resolvers do
   """
   @spec issue_commit_reference_event_url(map, %{}, Absinthe.Resolution.t) :: {:ok, binary}
   def issue_commit_reference_event_url(%{"commit_hash" => hash, "repo_id" => repo_id}, _args, %Absinthe.Resolution{context: ctx} = _info) do
-    batch({__MODULE__, :batch_repos_by_ids, ctx[:current_user]}, repo_id, fn repos -> {:ok, Routes.codebase_url(GitGud.Web.Endpoint, :commit, repos[repo_id].owner, repos[repo_id], hash)} end)
+    batch({__MODULE__, :batch_repos_by_ids, ctx[:current_user]}, repo_id, fn repos -> {:ok, "/#{repos[repo_id].owner}/#{repos[repo_id].name}/commit/#{hash}"} end)
   end
 
   @doc """

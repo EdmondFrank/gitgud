@@ -1,0 +1,16 @@
+<main class="hero">
+  <div class="hero-body">
+    <div class="container">
+      <div class="box">
+        <div class="is-pulled-right">
+          <a href={~p"/"}>
+            <img src={~p"/images/logo.svg"} alt="" width="72" height="72" />
+          </a>
+        </div>
+
+        <h1 class="title has-text-grey-lighter"><%= Plug.Conn.Status.reason_phrase(@conn.status) %></h1>
+        <%= @inner_content %>
+      </div>
+    </div>
+  </div>
+</main>

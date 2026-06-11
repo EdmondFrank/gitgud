@@ -1,0 +1,60 @@
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">SSH keys</h2>
+    </div>
+  </div>
+  <div class="level-right">
+    <div class="level-item">
+      <a class="button is-success" href={ ~p"/settings/ssh/new" }>New SSH key</a>
+    </div>
+  </div>
+</div>
+
+<%= if Enum.empty?(@user.ssh_keys) do %>
+  <article class="message is-light">
+    <div class="message-body">You have not imported any SSH keys.</div>
+  </article>
+<% else %>
+  <%= for ssh_key <- @user.ssh_keys do %>
+    <div class="columns">
+      <div class="column is-12">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">
+              <%= ssh_key.name %>
+            </p>
+            <div class="card-header-icon" aria-label="more options">
+              <%= form_for @conn, ~p"/settings/ssh", [method: :delete, as: :ssh_key], fn f -> %>
+                <%= hidden_input(f, :id, value: ssh_key.id) %>
+                <button type="submit" class="delete"></button>
+              <% end %>
+            </div>
+          </header>
+          <div class="card-content">
+            <div class="content">
+              <div>
+                <label>Fingerprint:</label>
+                <code class="is-size-7"><%= ssh_key.fingerprint %></code>
+              </div>
+            </div>
+          </div>
+          <footer class="card-footer">
+            <p class="card-footer-item">
+              <span>Added on <%= datetime_format(ssh_key.inserted_at, "{D} {Mshort} {YYYY}") %></span>
+            </p>
+            <p class="card-footer-item">
+              <span>
+                <%= if used_at = ssh_key.used_at do %>
+                  Used <%= datetime_format(used_at, "{relative}") %>
+                <% else %>
+                  Never used
+                <% end %>
+              </span>
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

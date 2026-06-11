@@ -8,7 +8,7 @@ defmodule GitGud.Web.LandingPageController do
   @spec index(Plug.Conn.t, map) :: Plug.Conn.t
   def index(conn, _params) do
     if user = current_user(conn),
-      do: redirect(conn, to: Routes.user_path(conn, :show, user)),
+      do: redirect(conn, to: ~p"/#{user.login}"),
     else: render(conn, "index.html")
   end
 end

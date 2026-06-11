@@ -1,0 +1,108 @@
+<h2 class="subtitle">Profile</h2>
+
+<div class="columns">
+  <div class="column is-two-thirds">
+    <%= form_for @changeset, ~p"/settings/profile", [as: :profile], fn f -> %>
+      <div class="field">
+        <%= label f, :name, class: "label" %>
+        <div class="control">
+          <%= text_input f, :name, class: "input" %>
+        </div>
+        <%= error_tag f, :name %>
+      </div>
+
+      <% verified_emails = Enum.map(Enum.filter(@user.emails, &(&1.verified)), &{&1.address, &1.id}) %>
+      <%= if !Enum.empty?(verified_emails) do %>
+      <div class="field">
+        <%= label f, :public_email_id, "Public email address", class: "label" %>
+        <div class="control is-expanded">
+          <div class="select is-fullwidth">
+            <%= select f, :public_email_id, verified_emails, prompt: "Don't show my email address", selected: @user.public_email_id %>
+          </div>
+        </div>
+        <%= error_tag f, :public_email %>
+      </div>
+      <% else %>
+        <div class="field">
+          <label class="label" for="profile_public_email_id">Public email address</label>
+            <div class="control is-expanded">
+              <div class="select is-fullwidth">
+                <select id="profile_public_email_id" disabled>
+                  <option>Verify an email address first</option>
+                </select>
+              </div>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="field">
+        <%= label f, :bio, class: "label" %>
+        <div class="control">
+          <%= textarea f, :bio, class: "textarea" %>
+        </div>
+        <%= error_tag f, :bio %>
+      </div>
+
+      <div class="field">
+        <%= label f, :website_url, "Website", class: "label" %>
+        <div class="control">
+          <%= text_input f, :website_url, class: "input" %>
+        </div>
+        <%= error_tag f, :website_url %>
+      </div>
+
+      <div class="field">
+        <%= label f, :location, class: "label" %>
+        <div class="control">
+          <%= text_input f, :location, class: "input" %>
+        </div>
+        <%= error_tag f, :location %>
+      </div>
+
+      <hr />
+
+      <div class="field">
+        <%= submit "Update profile", class: "button is-link" %>
+      </div>
+    <% end %>
+  </div>
+  <div class="column is-one-third has-text-centered">
+    <%= if @user.avatar_url do %>
+      <%= user_avatar(@user, size: 150) %>
+    <% end %>
+    <%= form_for @avatar_changeset, ~p"/settings/profile/update_avatar", [multipart: true], fn f -> %>
+      <%= if @avatar_changeset.action do %>
+      <div class="alert alert-danger">
+        <p>Oops, something went wrong! Please check the errors below.</p>
+      </div>
+      <% end %>
+
+      <div id="avatar-form" class="form-group file is-centered">
+        <span class="file-icon">
+          <i class="fas fa-upload"></i>
+        </span>
+        <%= label f, :avatar_url, "Click here choose ...", class: "control-label file-label" %>
+        <%= file_input f, :avatar_url, class: "form-control file-input" %>
+        <%= error_tag f, :avatar_url %>
+      </div>
+      <span id="avatar-file-name">
+        No file uploaded
+      </span>
+      <div id="avatar-submit">
+        <%= submit "Update avatar", class: "button is-link", disabled: true %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<script>
+  const fileInput = document.querySelector('#avatar-form input[type=file]');
+  fileInput.onchange = () => {
+    if (fileInput.files.length > 0) {
+      const fileName = document.querySelector('#avatar-file-name');
+      const fileSubmit = document.querySelector('#avatar-submit button');
+      fileName.textContent = fileInput.files[0].name;
+      fileSubmit.disabled = false;
+    }
+  }
+</script>

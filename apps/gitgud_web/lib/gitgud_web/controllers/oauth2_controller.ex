@@ -14,7 +14,7 @@ defmodule GitGud.Web.OAuth2Controller do
   alias GitGud.OAuth2.{GitHub, GitLab, Gitee, Provider}
 
   plug :ensure_authenticated when action in [:index]
-  plug :put_layout, :user_settings when action in [:index]
+  plug :put_layout, [html: :user_settings] when action in [:index]
 
   action_fallback GitGud.Web.FallbackController
 
@@ -39,7 +39,7 @@ defmodule GitGud.Web.OAuth2Controller do
       oauth2 = Provider.delete!(oauth2)
       conn
       |> put_flash(:info, "OAuth2.0 provider #{provider_name(oauth2.provider)} disconnected.")
-      |> redirect(to: Routes.oauth2_path(conn, :index))
+      |> redirect(to: ~p"/settings/oauth2")
     else
       {:error, :bad_request}
     end
@@ -50,7 +50,7 @@ defmodule GitGud.Web.OAuth2Controller do
   """
   @spec authorize(Plug.Conn.t, map) :: Plug.Conn.t
   def authorize(conn, %{"provider" => provider}) do
-    redirect(conn, external: authorize_url!(provider, redirect_uri: Routes.oauth2_url(conn, :callback, provider), state: get_csrf_token()))
+    redirect(conn, external: authorize_url!(provider, redirect_uri: url(~p"/auth/#{provider}/callback"), state: get_csrf_token()))
   end
 
   @doc """
@@ -58,7 +58,7 @@ defmodule GitGud.Web.OAuth2Controller do
   """
   @spec callback(Plug.Conn.t, map) :: Plug.Conn.t
   def callback(conn, %{"provider" => provider, "code" => code}) do
-    client = get_token!(provider, code: code, redirect_uri: Routes.oauth2_url(conn, :callback, provider))
+    client = get_token!(provider, code: code, redirect_uri: url(~p"/auth/#{provider}/callback"))
     user_info = get_user!(provider, client)
     cond do
       authenticated?(conn) ->
@@ -68,11 +68,11 @@ defmodule GitGud.Web.OAuth2Controller do
             conn
             |> put_session(:user_id, user.id)
             |> put_flash(:info, "OAuth2.0 provider #{provider_name(oauth2.provider)} connected.")
-            |> redirect(to: Routes.oauth2_path(conn, :index))
+            |> redirect(to: ~p"/settings/oauth2")
           {:error, _changeset} ->
             conn
             |> put_status(:bad_request)
-            |> put_layout(:user_settings)
+            |> put_layout(html: :user_settings)
             |> put_flash(:error, "Something went wrong!")
             |> render("index.html", user: user)
         end
@@ -80,7 +80,7 @@ defmodule GitGud.Web.OAuth2Controller do
         conn
         |> put_session(:user_id, user.id)
         |> put_flash(:info, "Welcome #{user.login}.")
-        |> redirect(to: Routes.user_path(conn, :show, user))
+        |> redirect(to: ~p"/#{user.login}")
       true ->
         changeset = User.registration_changeset(%User{}, %{
           login: user_info.login,
@@ -94,7 +94,7 @@ defmodule GitGud.Web.OAuth2Controller do
           emails: [%{address: user_info.email}]
         })
         conn
-        |> put_layout(:hero)
+        |> put_layout(html: :hero)
         |> put_view(GitGud.Web.UserView)
         |> render("new.html", changeset: changeset)
     end

@@ -7,6 +7,7 @@ defmodule GitGud.Web.Router do
     plug :fetch_session
     plug :fetch_live_flash
     plug :authenticate_session
+    plug :put_root_layout, html: {GitGud.Web.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
@@ -92,7 +93,7 @@ defmodule GitGud.Web.Router do
     get "/:user_login/repositories", RepoController, :index
 
     scope "/:user_login/:repo_name" do
-      live_session :repo, root_layout: {GitGud.Web.LayoutView, "repo.html"} do
+      live_session :repo, root_layout: {GitGud.Web.Layouts, :root} do
         live "/", TreeBrowserLive, :show, as: :codebase
         live "/tree/:revision/*path", TreeBrowserLive, :tree, as: :codebase
         live "/blob/:revision/*path", BlobViewerLive, :blob, as: :codebase

@@ -56,7 +56,7 @@ defmodule GitGud.Web.CommitHistoryLive do
   def handle_params(params, _uri, socket) do
     case GitAgent.head(socket.assigns.agent) do
       {:ok, head} ->
-        {:noreply, push_patch(socket, to: Routes.codebase_path(socket, :history, socket.assigns.repo.owner_login, socket.assigns.repo.name, head, Map.get(params, "path", [])))}
+        {:noreply, push_patch(socket, to: "/#{socket.assigns.repo.owner_login}/#{socket.assigns.repo.name}/commits/#{head}/#{Map.get(params, "path", [])}")}
       {:error, error} ->
         {:noreply, put_flash(socket, :error, error)}
     end

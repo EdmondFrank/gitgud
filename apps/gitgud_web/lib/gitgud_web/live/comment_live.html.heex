@@ -19,7 +19,7 @@
               <% end %>
             </div>
           <% end %>
-          <a href={Routes.user_path(@socket, :show, @comment.author)} class="tag user"><%= @comment.author %></a> commented <%= datetime_format(@comment.inserted_at, "{relative}") %>
+          <a href={~p"/#{@comment.author.login}"} class="tag user"><%= @comment.author %></a> commented <%= datetime_format(@comment.inserted_at, "{relative}") %>
         </header>
         <div class="content"><%= @comment_body_html %></div>
       </div>

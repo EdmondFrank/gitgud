@@ -8,17 +8,17 @@
     <% else %>
       <%= case @label_type do %>
         <% "branch" -> %>
-          <a class="button" href={Routes.codebase_path(@socket, :branches, @repo.owner_login, @repo)}>
+          <a class="button" href={~p"/#{@repo.owner_login}/#{@repo.name}/branches"}>
             <span>Branch: <span class="has-text-weight-semibold"><%= @label_name %></span></span>
             <span class="icon is-small"><i class="fa fa-angle-down" aria-hidden="true"></i></span>
           </a>
         <% "tag" -> %>
-          <a class="button" href={Routes.codebase_path(@socket, :tags, @repo.owner_login, @repo)}>
+          <a class="button" href={~p"/#{@repo.owner_login}/#{@repo.name}/tags"}>
             <span>Tag: <span class="has-text-weight-semibold"><%= @label_name %></span></span>
             <span class="icon is-small"><i class="fa fa-angle-down" aria-hidden="true"></i></span>
           </a>
         <% "commit" -> %>
-          <a class="button" href={Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, @revision)}>
+          <a class="button" href={~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{@revision}"}>
             <span>Commit: <span class="has-text-weight-semibold"><%= @label_name %></span></span>
             <span class="icon is-small"><i class="fa fa-angle-down" aria-hidden="true"></i></span>
           </a>
@@ -41,7 +41,7 @@
           <a class={if @tab == :tag, do: "is-active"} phx-click="switch_tab" phx-value-tab="tag" phx-target={@myself}>Tags</a>
         </p>
         <%= if @tab == :branch && @head do %>
-          <%= live_redirect to: Routes.codebase_path(@socket, @action, @repo.owner_login, @repo, @repo.default_branch, @tree_path), class: ["panel-block", @head.oid == @commit.oid && "is-active"] do %>
+          <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/#{@action}/#{@repo.default_branch}/#{@tree_path}", class: ["panel-block", @head.oid == @commit.oid && "is-active"] do %>
             <div class="control">
               <span class="head"><%= @repo.default_branch %></span>
               <span class="tag is-pulled-right">default</span>
@@ -49,14 +49,14 @@
           <% end %>
         <% end %>
         <%= for ref <- Enum.filter(@refs, &(&1.type == @tab && String.contains?(&1.name, @filter))) do %>
-          <%= live_redirect ref.name, to: Routes.codebase_path(@socket, @action, @repo.owner_login, @repo, ref, @tree_path), class: ["panel-block", ref.oid == @commit.oid && "is-active"] %>
+          <%= live_redirect ref.name, to: ~p"/#{@repo.owner_login}/#{@repo.name}/#{@action}/#{ref}/#{@tree_path}", class: ["panel-block", ref.oid == @commit.oid && "is-active"] %>
         <% end %>
         <div class="panel-block">
             <%= case @tab do %>
             <% :branch -> %>
-              <%= live_redirect "all branches", to: Routes.codebase_path(@socket, :branches, @repo.owner_login, @repo), class: "button is-small is-link is-fullwidth" %>
+              <%= live_redirect "all branches", to: ~p"/#{@repo.owner_login}/#{@repo.name}/branches", class: "button is-small is-link is-fullwidth" %>
             <% :tag -> %>
-              <%= live_redirect "all tags", to: Routes.codebase_path(@socket, :tags, @repo.owner_login, @repo), class: "button is-small is-link is-fullwidth" %>
+              <%= live_redirect "all tags", to: ~p"/#{@repo.owner_login}/#{@repo.name}/tags", class: "button is-small is-link is-fullwidth" %>
             <% end %>
         </div>
       </nav>

@@ -63,7 +63,7 @@ defmodule GitGud.SmartHTTPBackend do
   alias GitGud.MetaDB
   alias GitGud.ContentStore
 
-  alias GitGud.Web.Router.Helpers, as: Routes
+
 
   plug :basic_authentication
   plug :bearer_token_authentication
@@ -296,9 +296,7 @@ defmodule GitGud.SmartHTTPBackend do
       size: object["size"],
       actions: %{
         action =>  %{
-          href: Routes.smart_http_backend_url(
-            conn, :objects, user_login, repo_name, [oid: object["oid"]]
-          ),
+          href: "/#{user_login}/#{repo_name}/objects/#{object["oid"]}"
         }
       }
     }

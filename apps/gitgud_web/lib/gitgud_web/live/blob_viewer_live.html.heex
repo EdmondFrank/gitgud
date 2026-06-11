@@ -17,11 +17,11 @@
       <nav id="tree-breadcrumb" class="breadcrumb" aria-label="breadcrumbs" phx-hook="TreeBreadcrumb">
         <ul>
           <li>
-            <%= live_redirect @repo.name, to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @revision, []) %>
+            <%= live_redirect @repo.name, to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@revision}/" %>
           </li>
           <%= unless Enum.empty?(@blob_path) do %>
             <%= for {path, index} <- Enum.with_index(Enum.drop(@blob_path, -1), 1) do %>
-              <li><%= live_redirect path, to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @revision, Enum.take(@blob_path, index)) %></li>
+              <li><%= live_redirect path, to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@revision}/#{Enum.take(@blob_path, index)}" %></li>
             <% end %>
             <li class="is-active"><a><%= List.last(@blob_path) %></a></li>
           <% end %>
@@ -34,16 +34,16 @@
       <div class="level-item">
         <div class="field has-addons">
           <div class="control">
-            <%= live_redirect "Edit", to: Routes.codebase_path(@socket, :edit, @repo.owner_login, @repo.name, @revision, @blob_path), class: "button" %>
+            <%= live_redirect "Edit", to: ~p"/#{@repo.owner_login}/#{@repo.name}/edit/#{@revision}/#{@blob_path}", class: "button" %>
           </div>
           <div class="control">
-            <%= live_redirect "Delete", to: Routes.codebase_path(@socket, :confirm_delete, @repo.owner_login, @repo.name, @revision, @blob_path), class: "button" %>
+            <%= live_redirect "Delete", to: ~p"/#{@repo.owner_login}/#{@repo.name}/delete/#{@revision}/#{@blob_path}", class: "button" %>
           </div>
         </div>
       </div>
     <% end %>
     <div class="level-item">
-      <%= live_redirect "History", to: Routes.codebase_path(@socket, :history, @repo.owner_login, @repo.name, @revision, @blob_path), class: "button" %>
+      <%= live_redirect "History", to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@revision}/#{@blob_path}", class: "button" %>
     </div>
   </div>
 </nav>
@@ -55,11 +55,11 @@
         <%= with %{author: _author, committer: committer} <- Map.take(@blob_commit_info, [:author, :committer]) do %>
           <span>
             <%= if Map.has_key?(committer, :id) do %>
-              <a href={Routes.user_path(@socket, :show, committer)} class="tag is-white user"><%= committer %></a>
+              <a href={~p"/#{committer}"} class="tag is-white user"><%= committer %></a>
             <% else %>
               <a href={"mailto:#{committer.email}"} class="tag tooltip is-white has-text-black" data-tooltip={committer.email}><%= committer.name %></a>
             <% end %>
-            <%= live_redirect commit_message_title(@blob_commit_info.message), to: Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, oid_fmt(@blob_commit_info.oid)), class: "has-text-dark" %>
+            <%= live_redirect commit_message_title(@blob_commit_info.message), to: ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{oid_fmt(@blob_commit_info.oid)}", class: "has-text-dark" %>
           </span>
         <% end %>
       <% else %>

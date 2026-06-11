@@ -10,7 +10,7 @@ defmodule GitGud.Web.IssueLabelController do
   alias GitGud.IssueQuery
 
   plug :ensure_authenticated when action == :update
-  plug :put_layout, :repo
+  plug :put_layout, html: :repo
 
   action_fallback GitGud.Web.FallbackController
 
@@ -43,7 +43,7 @@ defmodule GitGud.Web.IssueLabelController do
           {:ok, _repo} ->
             conn
             |> put_flash(:info, "Issue labels updated.")
-            |> redirect(to: Routes.issue_label_path(conn, :index, user_login, repo_name))
+            |> redirect(to: ~p"/#{user_login}/#{repo_name}/issues/labels")
           {:error, changeset} ->
             conn
             |> put_flash(:error, "Something went wrong! Please check error(s) below.")

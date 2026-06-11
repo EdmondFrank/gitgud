@@ -111,7 +111,7 @@ defmodule GitGud.Web.CodebaseView do
         "#" <> number = match
         number = String.to_integer(number)
         if issue = Enum.find(issues, &(&1.repo_id == repo.id && &1.number == number)),
-          do: {acc ++ [head, link(match, to: Routes.issue_path(GitGud.Web.Endpoint, :show, repo.owner_login, repo, issue))], rest, idx+len},
+          do: {acc ++ [head, link(match, to: "/#{repo.owner_login}/#{repo.name}/issues/#{number}")], rest, idx+len},
         else: {acc ++ [head, match], rest, idx+len}
       end)
     List.flatten(content, [rest])

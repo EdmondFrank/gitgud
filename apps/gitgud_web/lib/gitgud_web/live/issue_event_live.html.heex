@@ -11,7 +11,7 @@
         <i class="fa fa-pen"></i>
       </div>
       <div class="timeline-content">
-        <a href={Routes.user_path(@socket, :show, user)} class="has-text-black"><%= user.login %></a>
+        <a href={~p"/#{user}"} class="has-text-black"><%= user.login %></a>
         changed the title <em class="has-text-black"><s><%= old_title %></s></em> to <em class="has-text-black"><%= new_title %></em>
         <%= datetime_format(NaiveDateTime.from_iso8601!(timestamp), "{relative}") %>
       </div>
@@ -24,7 +24,7 @@
         <i class="fa fa-check"></i>
       </div>
       <div class="timeline-content">
-        <a href={Routes.user_path(@socket, :show, user)} class="has-text-black"><%= user.login %></a>
+        <a href={~p"/#{user}"} class="has-text-black"><%= user.login %></a>
         closed this issue <%= datetime_format(NaiveDateTime.from_iso8601!(timestamp), "{relative}") %>
       </div>
     <% %{
@@ -36,7 +36,7 @@
         <i class="fa fa-redo"></i>
       </div>
       <div class="timeline-content">
-        <a href={Routes.user_path(@socket, :show, user)} class="has-text-black"><%= user.login %></a>
+        <a href={~p"/#{user}"} class="has-text-black"><%= user.login %></a>
         reopened this issue <%= datetime_format(NaiveDateTime.from_iso8601!(timestamp), "{relative}") %>
       </div>
     <% %{
@@ -50,7 +50,7 @@
         <i class="fa fa-tag"></i>
       </div>
       <div class="timeline-content">
-        <a href={Routes.user_path(@socket, :show, user)} class="has-text-black"><%= user.login %></a>
+        <a href={~p"/#{user}"} class="has-text-black"><%= user.login %></a>
         <%= unless Enum.empty?(push_ids) do %>
           added
           <%= for label_id <- push_ids do %>
@@ -76,9 +76,9 @@
         <i class="fa fa-code-commit"></i>
       </div>
       <div class="timeline-content">
-        <a href={Routes.user_path(@socket, :show, user)} class="has-text-black"><%= user.login %></a>
+        <a href={~p"/#{user}"} class="has-text-black"><%= user.login %></a>
         referenced this issue in commit
-        <a href={Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, commit_oid)}><code class="has-text-link"><%= String.slice(commit_oid, 0, 7) %></code></a>
+        <a href={~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{commit_oid}"}><code class="has-text-link"><%= String.slice(commit_oid, 0, 7) %></code></a>
         <%= datetime_format(NaiveDateTime.from_iso8601!(timestamp), "{relative}") %>
       </div>
   <% end %>

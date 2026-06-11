@@ -9,12 +9,12 @@
               <button class="commit-oid button is-small is-dark is-inverted has-text-weight-bold">
                 <span class="is-family-monospace"><%= oid_fmt(@commit.oid) %></span>
               </button>
-              <%= live_redirect to: Routes.codebase_path(@socket, :history, @repo.owner_login, @repo, @commit, []), class: "button is-small is-link is-inverted" do %>
+              <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@commit}/", class: "button is-small is-link is-inverted" do %>
                 <span class="icon">
                   <i class="fa fa-history"></i>
                 </span>
               <% end %>
-              <%= live_redirect to: Routes.codebase_path(@socket, :tree, @repo.owner_login, @repo, @commit, []), class: "button is-small is-link is-inverted" do %>
+              <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/tree/#{@commit}/", class: "button is-small is-link is-inverted" do %>
                 <span class="icon">
                   <i class="fa fa-code"></i>
                 </span>
@@ -33,7 +33,7 @@
               <div class="control">
                 <div class="buttons">
                   <%= for parent <- @commit_info.parents do %>
-                    <%= live_patch parent, to: Routes.codebase_path(@socket, :commit, @repo.owner_login, @repo, parent), class: "button is-small is-link is-inverted has-text-weight-bold" %>
+                    <%= live_patch parent, to: ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{parent}", class: "button is-small is-link is-inverted has-text-weight-bold" %>
                   <% end %>
                 </div>
               </div>
@@ -96,12 +96,12 @@
               <%= delta.new_file.path %>
             </div>
             <p class="card-header-icon buttons">
-              <%= live_redirect to: Routes.codebase_path(@socket, :history, @repo.owner_login, @repo, @commit, Path.split(delta.old_file.path)), class: "button is-small is-link is-inverted" do %>
+              <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@commit}/#{Path.split(delta.old_file.path)}", class: "button is-small is-link is-inverted" do %>
                 <span class="icon">
                   <i class="fa fa-history"></i>
                 </span>
               <% end %>
-              <%= live_redirect to: Routes.codebase_path(@socket, :blob, @repo.owner_login, @repo, @commit, Path.split(delta.new_file.path)), class: "button is-small is-link is-inverted" do %>
+              <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/blob/#{@commit}/#{Path.split(delta.new_file.path)}", class: "button is-small is-link is-inverted" do %>
                 <span class="icon">
                   <i class="fa fa-code"></i>
                 </span>

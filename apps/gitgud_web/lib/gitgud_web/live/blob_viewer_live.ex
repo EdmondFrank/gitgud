@@ -88,7 +88,7 @@ defmodule GitGud.Web.BlobViewerLive do
   defp resolve_revision_blob!(socket, revision, blob_path) do
     case GitAgent.transaction(socket.assigns.agent, &resolve_revision_blob(&1, revision, blob_path)) do
       {:ok, {ref, commit, blob_content, blob_size}} ->
-        raw_link = Routes.codebase_path(socket, :raw, socket.assigns.repo.owner_login, socket.assigns.repo.name, revision, blob_path)
+        raw_link = "/#{socket.assigns.repo.owner_login}/#{socket.assigns.repo.name}/raw/#{revision}/#{blob_path}"
         blob_info = %{revision: ref || commit, commit: commit, blob_content: blob_content, blob_size: blob_size, raw_link: raw_link}
         if String.valid?(blob_content),
           do: blob_info,

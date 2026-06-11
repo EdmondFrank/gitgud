@@ -6,7 +6,7 @@ defmodule GitGud.Web.Markdown do
   alias GitGud.UserQuery
   alias GitGud.IssueQuery
 
-  alias GitGud.Web.Router.Helpers, as: Routes
+
   alias GitGud.Web.Emoji
 
   alias GitRekt.GitRepo
@@ -92,11 +92,11 @@ defmodule GitGud.Web.Markdown do
           case match do
             "@" <> login ->
               if user = Enum.find(users, &(&1.login == login)), do:
-                {"a", [{"href", Routes.user_path(GitGud.Web.Endpoint, :show, user)}, {"class", "has-text-black"}], ["@#{login}"], %{}}
+                {"a", [{"href", "/#{login}"}, {"class", "has-text-black"}], ["@#{login}"], %{}}
             "#" <> number_str ->
               number = String.to_integer(number_str)
               if issue = Enum.find(issues, &(&1.number == number)), do:
-                {"a", [{"href", Routes.issue_path(GitGud.Web.Endpoint, :show, repo.owner_login, repo, issue)}], ["##{number}"], %{}}
+                {"a", [{"href", "/#{repo.owner_login}/#{repo.name}/issues/#{number}"}], ["##{number}"], %{}}
             match ->
               cond do
                 String.starts_with?(match, ":") && String.ends_with?(match, ":") ->
@@ -105,7 +105,7 @@ defmodule GitGud.Web.Markdown do
                   if agent do
                     case GitAgent.revision(agent, match) do
                       {:ok, {commit, _ref}} ->
-                        {"a", [{"href", Routes.codebase_path(GitGud.Web.Endpoint, :commit, repo.owner_login, repo, commit)}], [{"code", [{"class", "has-text-link"}], [match], %{}}], %{}}
+                        {"a", [{"href", "/#{repo.owner_login}/#{repo.name}/commit/#{commit}"}], [{"code", [{"class", "has-text-link"}], [match], %{}}], %{}}
                       {:error, _reason} ->
                         nil
                     end

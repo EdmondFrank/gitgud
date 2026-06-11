@@ -11,7 +11,7 @@ defmodule GitGud.Web.EmailController do
   alias GitGud.User
 
   plug :ensure_authenticated
-  plug :put_layout, :user_settings
+  plug :put_layout, html: :user_settings
 
   action_fallback GitGud.Web.FallbackController
 
@@ -37,7 +37,7 @@ defmodule GitGud.Web.EmailController do
         GitGud.Mailer.deliver_later!(GitGud.Mailer.verification_email(email))
         conn
         |> put_flash(:info, "Email '#{email.address}' added.")
-        |> redirect(to: Routes.email_path(conn, :index))
+        |> redirect(to: ~p"/settings/emails")
       {:error, changeset} ->
         conn
         |> put_status(:bad_request)
@@ -58,11 +58,11 @@ defmodule GitGud.Web.EmailController do
         User.update!(user, :primary_email, email)
         conn
         |> put_flash(:info, "Email '#{email.address}' is now your primary email.")
-        |> redirect(to: Routes.email_path(conn, :index))
+        |> redirect(to: ~p"/settings/emails")
       else
         conn
         |> put_flash(:info, "Email '#{email.address}' is already your primary email.")
-        |> redirect(to: Routes.email_path(conn, :index))
+        |> redirect(to: ~p"/settings/emails")
       end
     else
       {:error, :bad_request}
@@ -80,7 +80,7 @@ defmodule GitGud.Web.EmailController do
       Email.delete!(email)
       conn
       |> put_flash(:info, "Email '#{email.address}' deleted.")
-      |> redirect(to: Routes.email_path(conn, :index))
+      |> redirect(to: ~p"/settings/emails")
     else
       {:error, :bad_request}
     end
@@ -98,7 +98,7 @@ defmodule GitGud.Web.EmailController do
       GitGud.Mailer.deliver_later!(GitGud.Mailer.verification_email(email))
       conn
       |> put_flash(:info, "A verification email has been sent to '#{email.address}'.")
-      |> redirect(to: Routes.email_path(conn, :index))
+      |> redirect(to: ~p"/settings/emails")
     else
       {:error, :bad_request}
     end
@@ -117,11 +117,11 @@ defmodule GitGud.Web.EmailController do
             Email.verify!(email)
             conn
             |> put_flash(:info, "Email '#{email.address}' verified.")
-            |> redirect(to: Routes.email_path(conn, :index))
+            |> redirect(to: ~p"/settings/emails")
           else
             conn
             |> put_flash(:info, "Email '#{email.address}' already verified.")
-            |> redirect(to: Routes.email_path(conn, :index))
+            |> redirect(to: ~p"/settings/emails")
           end
         else
           conn

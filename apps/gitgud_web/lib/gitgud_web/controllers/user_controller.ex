@@ -15,8 +15,8 @@ defmodule GitGud.Web.UserController do
 
   plug :ensure_authenticated when action in [:edit_profile, :edit_password, :update_profile, :update_password]
 
-  plug :put_layout, :hero when action in [:new, :create, :reset_password, :send_password_reset]
-  plug :put_layout, :user_settings when action in [:edit_profile, :edit_password, :update_profile, :update_password, :verify_password_reset]
+  plug :put_layout, [html: :hero] when action in [:new, :create, :reset_password, :send_password_reset]
+  plug :put_layout, [html: :user_settings] when action in [:edit_profile, :edit_password, :update_profile, :update_password, :verify_password_reset]
 
   plug :scrub_params, "user" when action == :create
   plug :scrub_params, "profile" when action == :update_profile
@@ -30,7 +30,7 @@ defmodule GitGud.Web.UserController do
   @spec show(Plug.Conn.t, map) :: Plug.Conn.t
   def show(conn, %{"user_login" => user_login} = _params) do
     if user = UserQuery.by_login(user_login, viewer: current_user(conn)),
-      do: redirect(conn, to: Routes.repo_path(conn, :index, user)),
+      do: redirect(conn, to: ~p"/#{user.login}/repositories"),
     else: {:error, :not_found}
   end
 
@@ -56,7 +56,7 @@ defmodule GitGud.Web.UserController do
         conn
         |> put_session(:user_id, user.id)
         |> put_flash(:info, "Welcome #{user.login}.")
-        |> redirect(to: Routes.user_path(conn, :show, user))
+        |> redirect(to: ~p"/#{user.login}")
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -91,7 +91,7 @@ defmodule GitGud.Web.UserController do
         {:ok, _user} ->
           conn
           |> put_flash(:info, "Profile updated.")
-          |> redirect(to: Routes.user_path(conn, :edit_profile))
+          |> redirect(to: ~p"/settings/profile")
         {:error, changeset} ->
           conn
           |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -118,7 +118,7 @@ defmodule GitGud.Web.UserController do
       {:ok, _user} ->
         conn
         |> put_flash(:info, "Avatar updated successfully.")
-        |> redirect(to: Routes.user_path(conn, :edit_profile))
+        |> redirect(to: ~p"/settings/profile")
 
       {:error, changeset} ->
         render(conn, "edit_profile.html", avatar_changeset: changeset)
@@ -149,7 +149,7 @@ defmodule GitGud.Web.UserController do
       {:ok, _user} ->
         conn
         |> put_flash(:info, "Password updated.")
-        |> redirect(to: Routes.user_path(conn, :edit_password))
+        |> redirect(to: ~p"/settings/password")
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -182,7 +182,7 @@ defmodule GitGud.Web.UserController do
       end
       conn
       |> put_flash(:info, "A password reset email has been sent to '#{email_address}'.")
-      |> redirect(to: Routes.session_path(conn, :new))
+      |> redirect(to: ~p"/login")
     else
       conn
       |> put_flash(:error, "Something went wrong! Please check error(s) below.")
@@ -207,16 +207,16 @@ defmodule GitGud.Web.UserController do
         else
           conn
           |> put_flash(:error, "Invalid password reset user.")
-          |> redirect(to: Routes.session_path(conn, :new))
+          |> redirect(to: ~p"/login")
         end
       {:error, :invalid} ->
         conn
         |> put_flash(:error, "Invalid password reset token.")
-        |> redirect(to: Routes.session_path(conn, :new))
+        |> redirect(to: ~p"/login")
       {:error, :expired} ->
         conn
         |> put_flash(:error, "Password reset token expired.")
-        |> redirect(to: Routes.session_path(conn, :new))
+        |> redirect(to: ~p"/login")
     end
   end
 

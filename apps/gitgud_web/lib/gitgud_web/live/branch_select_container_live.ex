@@ -26,17 +26,17 @@ defmodule GitGud.Web.BranchSelectContainerLive do
 
   @impl true
   def render(assigns) do
-    ~L"""
-      <%= live_component(GitGud.Web.BranchSelectLive,
-        id: "branch_select",
-        repo: @repo,
-        agent: @agent,
-        revision: @revision,
-        commit: @commit,
-        tree_path: @tree_path,
-        action: @action,
-        active: @active
-      ) %>
+    ~H"""
+      <.live_component module={GitGud.Web.BranchSelectLive}
+        id="branch_select"
+        repo={@repo}
+        agent={@agent}
+        revision={@revision}
+        commit={@commit}
+        tree_path={@tree_path}
+        action={@action}
+        active={@active}
+      />
     """
   end
 

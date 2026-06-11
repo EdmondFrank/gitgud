@@ -7,7 +7,7 @@ defmodule GitGud.Web.OAuth2View do
   @spec signin_button(Plug.Conn.t(), binary, keyword) :: binary
   def signin_button(conn, provider, attrs \\ []) do
     attrs
-    |> Keyword.put(:to, Routes.oauth2_path(conn, :authorize, provider))
+    |> Keyword.put(:to, "/auth/#{provider}")
     |> Keyword.put_new(:class, "button is-small #{provider}")
     |> link(
       do: [
@@ -27,7 +27,7 @@ defmodule GitGud.Web.OAuth2View do
     do:
       content_tag(:img, "",
         class: "fab fa-lg fa-gitee",
-        src: Routes.static_path(conn, "/images/gitee.png")
+        src: "/images/gitee.png"
       )
 
   def provider_icon(provider, _conn), do: content_tag(:i, "", class: "fab fa-lg fa-#{provider}")

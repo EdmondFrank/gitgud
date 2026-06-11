@@ -5,6 +5,8 @@ defmodule GitGud.Web.CommentFormLive do
 
   use GitGud.Web, :live_component
 
+  import Phoenix.HTML.Tag
+
   alias GitGud.Comment
 
   @impl true

@@ -1,0 +1,39 @@
+<%= cond do %>
+  <% @commit_info.author == @commit_info.committer && Map.has_key?(@commit_info.author, :id) -> %>
+    <a href={ ~p"/#{@commit_info.author.login}" } class="tag user"><%= @commit_info.author %></a>
+    committed <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+    <%= if @commit_info.gpg_key do %>
+      <%= _commit_gpg_signature(assigns) %>
+    <% end %>
+  <% Map.has_key?(@commit_info.author, :id) && Map.has_key?(@commit_info.committer, :id) -> %>
+    <div class="tag user">
+      <div class="avatar-stack">
+        <a href={ ~p"/#{@commit_info.author.login}" }><%= user_avatar(@commit_info.author, size: 24) %></a>
+        <a href={ ~p"/#{@commit_info.committer.login}" }><%= user_avatar(@commit_info.committer, size: 24) %></a>
+      </div>
+      <a href={ ~p"/#{@commit_info.author.login}" }><%= @commit_info.author.login %></a>
+    </div>
+    authored and <a href={ ~p"/#{@commit_info.committer.login}" }><%= @commit_info.committer.login %></a> committed
+    <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+    <%= if @commit_info.gpg_key do %>
+      <%= _commit_gpg_signature(assigns) %>
+    <% end %>
+  <% Map.has_key?(@commit_info.author, :id) -> %>
+    <a href={ ~p"/#{@commit_info.author.login}" } class="tag user"><%= @commit_info.author %></a>
+    authored and <a href={"mailto:" <> @commit_info.committer.email} class="tag tooltip has-text-black" data-tooltip={ @commit_info.committer.email }><%= @commit_info.committer.name %></a>
+    committed <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+  <% Map.has_key?(@commit_info.committer, :id) -> %>
+    <a href={"mailto:" <> @commit_info.author.email} class="tag tooltip has-text-black" data-tooltip={ @commit_info.author.email }><%= @commit_info.author.name %></a>
+    authored and <a href={ ~p"/#{@commit_info.committer.login}" } class="tag user"><%= @commit_info.committer %></a>
+    committed <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+    <%= if @commit_info.gpg_key do %>
+      <%= _commit_gpg_signature(assigns) %>
+    <% end %>
+  <% Map.take(@commit_info.author, [:name, :email]) == Map.take(@commit_info.committer, [:name, :email]) -> %>
+    <a href={"mailto:" <> @commit_info.committer.email} class="tag tooltip has-text-black" data-tooltip={ @commit_info.committer.email }><%= @commit_info.committer.name %></a>
+    committed <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+  <% true -> %>
+    <a href={"mailto:" <> @commit_info.author.email} class="tag tooltip has-text-black" data-tooltip={ @commit_info.author.email }><%= @commit_info.author.name %></a>
+    authored and <a href={"mailto:" <> @commit_info.committer.email} class="tag tooltip has-text-black" data-tooltip={ @commit_info.committer.email }><%= @commit_info.committer.name %></a>
+    committed <%= datetime_format(@commit_info.timestamp, "{relative}") %>
+<% end %>

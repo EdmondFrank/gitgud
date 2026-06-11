@@ -1,0 +1,72 @@
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">GPG keys</h2>
+    </div>
+  </div>
+  <div class="level-right">
+    <div class="level-item">
+      <a class="button is-success" href={ ~p"/settings/gpg/new" }>New GPG key</a>
+    </div>
+  </div>
+</div>
+
+<%= if Enum.empty?(@user.gpg_keys) do %>
+  <article class="message is-light">
+    <div class="message-body">You have not imported any GPG keys.</div>
+  </article>
+<% else %>
+  <%= for gpg_key <- @user.gpg_keys do %>
+    <div class="columns">
+      <div class="column is-12">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title is-family-monospace">
+              0x<%= format_key_id(gpg_key.key_id) %>
+            </p>
+            <div class="card-header-icon" aria-label="more options">
+              <%= form_for @conn, ~p"/settings/gpg", [method: :delete, as: :gpg_key], fn f -> %>
+                <%= hidden_input(f, :id, value: gpg_key.id) %>
+                <button type="submit" class="delete"></button>
+              <% end %>
+            </div>
+          </header>
+          <div class="is-pulled-right card-header-icon" aria-label="more options">
+          </div>
+          <div class="card-content">
+            <div class="content">
+              <div>
+                <label>Email addresses:</label>
+                <%= for email_address <- gpg_key.emails do %>
+                  <%= if Enum.any?(@user.emails, &(&1.verified && &1.address == email_address)) do %>
+                    <span class="tag tooltip is-light is-tooltip-bottom" data-tooltip="Verified email address"><%= email_address %></span>
+                  <% else %>
+                    <span class="tag tooltip is-white is-tooltip-warning is-tooltip-bottom" data-tooltip="Unverified email address"><%= email_address %></span>
+                  <% end %>
+                <% end %>
+              </div>
+              <div>
+                <label>Key ID:</label>
+                <code class="is-size-7">0x<%= format_key_id(gpg_key.key_id) %></code>
+              </div>
+              <div>
+                <label>Subkeys:</label>
+                <%= for sub_key <- gpg_key.sub_keys do %>
+                  <code class="is-size-7">0x<%= format_key_id(sub_key) %></code>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          <footer class="card-footer">
+            <p class="card-footer-item">
+              <span>Added on <%= datetime_format(gpg_key.inserted_at, "{D} {Mshort} {YYYY}") %></span>
+            </p>
+            <p class="card-footer-item">
+              <span>Expires <%= datetime_format(gpg_key.expires_at, "{relative}") %></span>
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

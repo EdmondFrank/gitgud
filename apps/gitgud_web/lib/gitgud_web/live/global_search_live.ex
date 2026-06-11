@@ -31,9 +31,9 @@ defmodule GitGud.Web.GlobalSearchLive do
       key == "Enter" ->
         case List.first(socket.assigns.search_results) do
           %User{} = user ->
-            {:noreply, redirect(socket, to: Routes.user_path(socket, :show, user))}
+            {:noreply, redirect(socket, to: "/#{user.login}")}
           %Repo{} = repo ->
-            {:noreply, redirect(socket, to: Routes.codebase_path(socket, :show, repo.owner_login, repo))}
+            {:noreply, redirect(socket, to: "/#{repo.owner_login}/#{repo.name}")}
           nil ->
             {:noreply, socket}
         end

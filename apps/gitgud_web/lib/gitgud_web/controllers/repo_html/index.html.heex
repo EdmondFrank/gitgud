@@ -1,0 +1,73 @@
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">Repositories</h2>
+    </div>
+  </div>
+  <%= if authenticated?(@conn) && @current_user.id == @user.id do %>
+    <div class="level-right">
+      <div class="level-item">
+        <%= if verified?(@current_user) do %>
+          <a class="button is-success" href={ ~p"/new" }>New</a>
+        <% else %>
+          <p class="button tooltip is-success" data-tooltip="Verify your account" disabled>New</p>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<%= if Enum.empty?(@user.repos) do %>
+  <article class="message is-light">
+    <%= if authenticated?(@conn) && @current_user.id == @user.id do %>
+      <div class="message-body">You have not created any repositories.</div>
+    <% else %>
+      <div class="message-body">This user has no repositories.</div>
+    <% end %>
+  </article>
+<% else %>
+  <%= for repo <- Enum.sort_by(@user.repos, &(&1.pushed_at || @earliest), {:desc, NaiveDateTime}) do %>
+    <div class="columns">
+      <div class="column is-full">
+        <div class="repo card">
+          <header class="card-header">
+            <a class="card-header-title" href={ ~p"/#{@user.login}/#{repo.name}" }><%= repo.name %><%= unless repo.public do %>&nbsp;<span class="tag has-text-grey-light"><i class="fa fa-lock"></i></span><% end %></a>
+              <div class="card-header-icon has-text-grey">
+                <div class="buttons">
+                  <%= unless is_nil(repo.pushed_at) do %>
+                    <a href={ ~p"/#{@user.login}/#{repo.name}/commits" } class="button is-small is-white">
+                      <span class="icon has-text-grey-dark"><i class="fa fa-history" aria-hidden="true"></i></span>
+                      <span><%= datetime_format(repo.pushed_at, "{relative}") %></span>
+                    </a>
+                  <% else %>
+                    <a class="button is-small is-white" disabled>
+                      <span>n/a</span>
+                    </a>
+                  <% end %>
+                  <a href={ ~p"/#{@user.login}/#{repo.name}/issues" } class="button is-small is-white">
+                    <span class="icon has-text-grey-dark"><i class="fa fa-exclamation-circle" aria-hidden="true"></i></span>
+                    <span><%= get_in(@stats, [repo.id, :issues]) %></span>
+                  </a>
+                  <a href={ ~p"/#{@user.login}/#{repo.name}/branches" } class="button is-small is-white">
+                    <span class="icon has-text-grey-dark"><i class="fa fa-code-branch" aria-hidden="true"></i></span>
+                    <span><%= get_in(@stats, [repo.id, :branches]) %></span>
+                  </a>
+                  <a href={ ~p"/#{@user.login}/#{repo.name}/tags" } class="button is-small is-white">
+                    <span class="icon has-text-grey-dark"><i class="fa fa-tags" aria-hidden="true"></i></span>
+                    <span><%= get_in(@stats, [repo.id, :tags]) %></span>
+                  </a>
+                  <p class="button is-small is-white">
+                    <span class="icon has-text-grey-dark"><i class="fa fa-user-friends" aria-hidden="true"></i></span>
+                    <span><%= get_in(@stats, [repo.id, :contributors]) %></span>
+                  </p>
+                </div>
+              </div>
+          </header>
+          <div class="card-content">
+            <div class="content"><%= repo.description %></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>
