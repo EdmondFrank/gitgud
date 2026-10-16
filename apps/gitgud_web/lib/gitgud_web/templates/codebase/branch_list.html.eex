@@ -35,7 +35,9 @@
         <div class="control">
           <div class="select">
             <select>
-              <option><%= @head.name %></option>
+              <%= if @head do %>
+                <option><%= @head.name %></option>
+              <% end %>
               <%= unless Enum.empty?(@page.slice) do %>
                 <%= for {branch, _, _, {_, _}} <- @page.slice do %>
                   <option><%= branch %></option>
@@ -113,7 +115,9 @@
       <tr>
         <td colspan="3">
           <article class="message is-light">
-            <div class="message-body">This repository has only one branch.</div>
+            <div class="message-body">
+              <%= if @head do %>This repository has only one branch.<% else %>This repository is empty.<% end %>
+            </div>
           </article>
         </td>
       </tr>
