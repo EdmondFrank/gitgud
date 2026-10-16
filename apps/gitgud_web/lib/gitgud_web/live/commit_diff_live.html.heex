@@ -137,17 +137,17 @@
                     <%= if review = Enum.find(@reviews, &(&1.blob_oid == delta.new_file.oid && &1.hunk == hunk_index && &1.line == line_index)) do %>
                       <tr id={"review-#{oid_fmt(review.blob_oid)}-#{review.hunk}-#{review.line}"} class="inline-comments">
                         <td colspan="4">
-                          <%= live_component(GitGud.Web.CommitLineReviewLive,
-                            id: "review-#{review.id}",
-                            current_user: @current_user,
-                            repo: @repo,
-                            repo_permissions: @repo_permissions,
-                            agent: @agent,
-                            commit: @commit,
-                            review_id: review.id,
-                            comments: review.comments,
-                            users_typing: review.users_typing
-                          ) %>
+                          <.live_component module={GitGud.Web.CommitLineReviewLive}
+                            id={"review-#{review.id}"}
+                            current_user={@current_user}
+                            repo={@repo}
+                            repo_permissions={@repo_permissions}
+                            agent={@agent}
+                            commit={@commit}
+                            review_id={review.id}
+                            comments={review.comments}
+                            users_typing={review.users_typing}
+                          />
                         </td>
                       </tr>
                     <% end %>
@@ -163,22 +163,22 @@
 
   <%= if connected?(@socket) do %>
     <table class="table is-hidden">
-      <%= live_component(GitGud.Web.CommitDiffDynamicReviewsLive,
-        id: "dynamic-reviews",
-        current_user: @current_user,
-        repo: @repo,
-        repo_permissions: @repo_permissions,
-        agent: @agent,
-        commit: @commit
-      ) %>
-      <%= live_component(GitGud.Web.CommitDiffDynamicFormsLive,
-        id: "dynamic-forms",
-        current_user: @current_user,
-        repo: @repo,
-        repo_permissions: @repo_permissions,
-        agent: @agent,
-        commit: @commit
-      ) %>
+      <.live_component module={GitGud.Web.CommitDiffDynamicReviewsLive}
+        id="dynamic-reviews"
+        current_user={@current_user}
+        repo={@repo}
+        repo_permissions={@repo_permissions}
+        agent={@agent}
+        commit={@commit}
+      />
+      <.live_component module={GitGud.Web.CommitDiffDynamicFormsLive}
+        id="dynamic-forms"
+        current_user={@current_user}
+        repo={@repo}
+        repo_permissions={@repo_permissions}
+        agent={@agent}
+        commit={@commit}
+      />
     </table>
   <% end %>
 </div>

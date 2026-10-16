@@ -2,15 +2,15 @@
   <div class="level-left">
     <div class="level-item">
       <div class="branch-select">
-        <%= live_component(GitGud.Web.BranchSelectLive,
-            id: "branch_select",
-            repo: @repo,
-            agent: @agent,
-            revision: @revision,
-            commit: @commit,
-            tree_path: @blob_path,
-            action: :blob
-        ) %>
+        <.live_component module={GitGud.Web.BranchSelectLive}
+            id="branch_select"
+            repo={@repo}
+            agent={@agent}
+            revision={@revision}
+            commit={@commit}
+            tree_path={@blob_path}
+            action={:blob}
+        />
       </div>
     </div>
     <div class="level-item">

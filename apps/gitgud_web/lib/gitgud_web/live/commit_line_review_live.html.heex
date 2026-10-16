@@ -3,14 +3,14 @@
     <%= for comment <- Enum.sort_by(@comments, &(&1.inserted_at)) do %>
       <div id={"review-comment-#{comment.id}"} class="timeline-item">
         <div class="timeline-content">
-          <%= live_component(GitGud.Web.CommentLive,
-            id: "comment-#{comment.id}",
-            current_user: @current_user,
-            repo: @repo,
-            repo_permissions: @repo_permissions,
-            agent: @agent,
-            comment: comment
-          )%>
+          <.live_component module={GitGud.Web.CommentLive}
+            id={"comment-#{comment.id}"}
+            current_user={@current_user}
+            repo={@repo}
+            repo_permissions={@repo_permissions}
+            agent={@agent}
+            comment={comment}
+          />
         </div>
       </div>
     <% end %>
@@ -47,14 +47,14 @@
       <div class="timeline-item">
         <div class="timeline-content">
           <div class="comment-form">
-            <%= live_component(GitGud.Web.CommentFormLive,
-              id: "review-#{@review_id}-comment-form",
-              current_user: @current_user,
-              repo: @repo,
-              agent: @agent,
-              phx_change: "validate_comment",
-              phx_submit: "add_comment") do %>
-              <% comment_form_assigns -> %>
+            <.live_component module={GitGud.Web.CommentFormLive}
+              id={"review-#{@review_id}-comment-form"}
+              current_user={@current_user}
+              repo={@repo}
+              agent={@agent}
+              phx_change="validate_comment"
+              phx_submit="add_comment"
+              :let={comment_form_assigns}>
                 <input type="hidden" name="review_id" value={@review_id} />
                 <%= unless Keyword.fetch!(comment_form_assigns, :minimized) do %>
                   <div class="control">
@@ -64,7 +64,7 @@
                 <div class="control">
                   <%= submit "Add comment", class: "button is-success", disabled: Keyword.fetch!(comment_form_assigns, :changeset).changes == %{} %>
                 </div>
-            <% end %>
+            </.live_component>
           </div>
         </div>
       </div>

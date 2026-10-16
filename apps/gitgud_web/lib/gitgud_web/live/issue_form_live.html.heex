@@ -12,12 +12,12 @@
 
           <div class="field comment-form">
             <%= for fc <- inputs_for(f, :comment) do %>
-              <%= live_component(GitGud.Web.CommentFormLive,
-                id: "comment-form",
-                current_user: @current_user,
-                repo: @repo,
-                form: fc
-              ) %>
+              <.live_component module={GitGud.Web.CommentFormLive}
+                id="comment-form"
+                current_user={@current_user}
+                repo={@repo}
+                form={fc}
+              />
             <% end %>
           </div>
 
@@ -30,11 +30,11 @@
     <div class="column is-one-quarter">
       <%= if connected?(@socket) && authorized?(@current_user, @repo, :admin) do %>
         <aside class="menu is-sticky">
-          <%= live_component(GitGud.Web.IssueLabelSelectLive,
-            id: "label-select",
-            repo: @repo,
-            labels: Enum.filter(@repo.issue_labels, &(&1.id in @labels))
-          ) %>
+          <.live_component module={GitGud.Web.IssueLabelSelectLive}
+            id="label-select"
+            repo={@repo}
+            labels={Enum.filter(@repo.issue_labels, &(&1.id in @labels))}
+          />
 
           <div class="select is-multiple is-hidden">
             <%= multiple_select(f, :labels, Enum.map(@repo.issue_labels, &[key: &1.name, value: &1.id]), selected: @labels) %>

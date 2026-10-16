@@ -54,14 +54,14 @@
 <div id="feed" class="columns" phx-hook="IssueFeed">
   <div class="column is-three-quarters">
     <div class="thread">
-      <%= live_component(GitGud.Web.CommentLive,
-        id: "comment-#{@issue_comment.id}",
-        current_user: @current_user,
-        repo: @repo,
-        repo_permissions: @repo_permissions,
-        comment: @issue_comment,
-        permissions: List.delete(CommentQuery.permissions(@issue_comment, @current_user, @repo_permissions), :delete)
-      ) %>
+      <.live_component module={GitGud.Web.CommentLive}
+        id={"comment-#{@issue_comment.id}"}
+        current_user={@current_user}
+        repo={@repo}
+        repo_permissions={@repo_permissions}
+        comment={@issue_comment}
+        permissions={List.delete(CommentQuery.permissions(@issue_comment, @current_user, @repo_permissions), :delete)}
+      />
       <div id="issue-timeline" class="timeline" phx-update="append">
         <div id="issue-timeline-header" class="timeline-header">
           <%= case @issue_comment_count do %>
@@ -74,22 +74,22 @@
             <% %Comment{} = comment -> %>
               <div id={"issue-comment-#{comment.id}"} class="timeline-item">
                 <div class="timeline-content">
-                  <%= live_component(GitGud.Web.CommentLive,
-                    id: "comment-#{comment.id}",
-                    current_user: @current_user,
-                    repo: @repo,
-                    repo_permissions: @repo_permissions,
-                    comment: comment
-                  ) %>
+                  <.live_component module={GitGud.Web.CommentLive}
+                    id={"comment-#{comment.id}"}
+                    current_user={@current_user}
+                    repo={@repo}
+                    repo_permissions={@repo_permissions}
+                    comment={comment}
+                  />
                 </div>
               </div>
             <% {event, index} -> %>
               <div id={"issue-event-#{index}"} class="timeline-item">
-                <%= live_component(GitGud.Web.IssueEventLive,
-                  id: "event-#{index}",
-                  repo: @repo,
-                  event: event
-                ) %>
+                <.live_component module={GitGud.Web.IssueEventLive}
+                  id={"event-#{index}"}
+                  repo={@repo}
+                  event={event}
+                />
               </div>
           <% end %>
         <% end %>
@@ -123,14 +123,14 @@
       <% end %>
       <%= if :comment in @issue_permissions do %>
         <div class="comment-form">
-          <%= live_component(GitGud.Web.CommentFormLive,
-            id: "issue-comment-form",
-            current_user: @current_user,
-            repo: @repo,
-            minimized: false,
-            phx_change: "validate_comment",
-            phx_submit: "add_comment") do %>
-              <% comment_form_assigns -> %>
+          <.live_component module={GitGud.Web.CommentFormLive}
+            id="issue-comment-form"
+            current_user={@current_user}
+            repo={@repo}
+            minimized={false}
+            phx_change="validate_comment"
+            phx_submit="add_comment"
+            :let={comment_form_assigns}>
                 <div class="control">
                   <%= case @issue.status do %>
                     <% "open" -> %>
@@ -154,19 +154,19 @@
                 <div class="control">
                   <%= submit "Add comment", class: "button is-success", disabled: Keyword.fetch!(comment_form_assigns, :changeset).changes == %{} %>
                 </div>
-          <% end %>
+          </.live_component>
         </div>
       <% end %>
     </div>
   </div>
   <div class="column is-one-quarter">
     <aside class="menu is-sticky">
-      <%= live_component(GitGud.Web.IssueLabelSelectLive,
-        id: "issue-label-select",
-        repo: @repo,
-        issue: @issue,
-        editable: :edit_labels in @issue_permissions
-      ) %>
+      <.live_component module={GitGud.Web.IssueLabelSelectLive}
+        id="issue-label-select"
+        repo={@repo}
+        issue={@issue}
+        editable={:edit_labels in @issue_permissions}
+      />
     </aside>
   </div>
 </div>
