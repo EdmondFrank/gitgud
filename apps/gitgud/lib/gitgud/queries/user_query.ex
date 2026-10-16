@@ -208,7 +208,7 @@ defmodule GitGud.UserQuery do
   defp join_preload(query, {parent, _children} = preload, viewer) do
     query
     |> join_preload(parent, viewer)
-    |> preload(^preload)
+    |> preload(^List.wrap(preload))
   end
 
   defp join_preload(query, preload, _viewer) do

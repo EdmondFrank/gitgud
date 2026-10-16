@@ -1,9 +1,12 @@
 import Config
 
 # Configure your database
+# Local credentials match the Docker database started via
+# `docker compose -f docker-compose-dev.yml up -d`.
+# CI (GitHub Actions) overrides these below.
 config :gitgud, GitGud.DB,
-  username: "postgres",
-  password: "postgres",
+  username: "gitfrank_user",
+  password: "gitfrank_pass",
   database: "gitgud_test",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox
@@ -14,6 +17,13 @@ if System.get_env("GITHUB_ACTIONS") do
     username: "postgres",
     password: "postgres"
 end
+
+# Configure metadata and content storage
+config :gitgud, GitGud.MetaDB,
+  data_dir: Path.absname("test/data/meta-data", Path.dirname(__DIR__))
+
+config :gitgud, GitGud.ContentStore,
+  data_dir: Path.absname("test/data/lfs-data", Path.dirname(__DIR__))
 
 # Configure your SSH server
 config :gitgud, GitGud.SSHServer,

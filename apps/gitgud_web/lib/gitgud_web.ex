@@ -130,6 +130,13 @@ defmodule GitGud.Web do
     quote do
       use Phoenix.LiveComponent
 
+      # LiveView 0.20 dropped the `:module` key from `__live__/0`, but the
+      # deprecated `live_component(module, assigns)` helper used throughout this
+      # codebase relies on it. Re-add it so those call sites keep working.
+      defoverridable __live__: 0
+      @doc false
+      def __live__, do: %{kind: :component, module: __MODULE__, layout: false}
+
       unquote(html_helpers())
 
       import GitGud.Web.AuthenticationLiveHelpers
@@ -207,6 +214,8 @@ defmodule GitGud.Web do
       use Phoenix.HTML
 
       use GitGud.Web.FormHelpers
+
+      alias GitGud.Web.Router.Helpers, as: Routes
 
       import Phoenix.View
       import Phoenix.LiveView.Helpers

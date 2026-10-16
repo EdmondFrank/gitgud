@@ -1,38 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <%= csrf_meta_tag() %>
-
-    <title><%= title(@conn) %></title>
-
-    <link rel="icon" href="<%= Routes.static_path(@conn, "/favicon.ico") %>" sizes="any">
-    <link rel="icon" href="<%= Routes.static_path(@conn, "/images/logo.svg") %>">
-    <link rel="apple-touch-icon" href="<%= Routes.static_path(@conn, "/apple-touch-icon.png") %>">
-    <link rel="manifest" href="<%= Routes.static_path(@conn, "/manifest.webmanifest") %>">
-    <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/assets/index.css") %>" />
-    <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/assets/index.js") %>"></script>
-  </head>
-
-  <body>
-    <main class="hero">
-      <div class="hero-body">
-        <div class="container">
-          <div class="box">
-            <div class="is-pulled-right">
-              <a href="<%= Routes.landing_page_path(@conn, :index) %>">
-                <img src="<%= Routes.static_path(@conn, "/images/logo.svg") %>" alt="" width="72" height="72" />
-              </a>
-            </div>
-
-            <h1 class="title has-text-grey-lighter"><%= Plug.Conn.Status.reason_phrase(@conn.status) %></h1>
-            <%= @inner_content %>
-          </div>
+<%# The HTML shell (including <title>) is provided by the root layout `GitGud.Web.Layouts.root`. %>
+<main class="hero">
+  <div class="hero-body">
+    <div class="container">
+      <div class="box">
+        <div class="is-pulled-right">
+          <a href="<%= Routes.landing_page_path(@conn, :index) %>">
+            <img src="<%= Routes.static_path(@conn, "/images/logo.svg") %>" alt="" width="72" height="72" />
+          </a>
         </div>
+
+        <h1 class="title has-text-grey-lighter"><%= Plug.Conn.Status.reason_phrase(@conn.status) %></h1>
+        <%= @inner_content %>
       </div>
-    </main>
-  </body>
-</html>
+    </div>
+  </div>
+</main>
