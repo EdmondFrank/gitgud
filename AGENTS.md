@@ -191,6 +191,18 @@ watcher automatically (`node build.js --watch`).
   `GitGud.ContentStore.start_link/1` `Keyword.fetch!` their `:data_dir`. Both dev and
   test configs set it (test writes under `apps/gitgud/test/data/`).
 - **Ports**: dev HTTP `4000`, SSH git `9989`; test SSH `9899`; production SSH `1022`/HTTP `4000`.
+- **`mix` in a child app ignores the umbrella root `mix.exs`** — a root-only
+  `override: true` does not suppress a conflict seen from *inside* an app, which is exactly
+  what `RUN cd apps/gitgud_web && mix assets.deploy` does. `peri` (pulled in by
+  `anubis_mcp`) requires `ecto ~> 3.12` while the project pins 3.9, so the
+  `{:ecto, "~> 3.9", override: true}` pin is repeated in `apps/gitgud/mix.exs` **and**
+  `apps/gitgud_web/mix.exs`. Repro without any build:
+  `cd apps/gitgud_web && MIX_ENV=prod mix deps.loadpaths` → `Unchecked dependencies …`.
+  Symptom in a build: step `mix assets.deploy` dies with `** (Mix) Can't continue due to
+  errors on dependencies`.
+- **`docker-compose.yml` must stay free of `${VAR:-default}`** — the deploy host ships
+  compose **v1**, which rejects every default-value form (`${VAR:-x}` and `${VAR-x}`) and
+  then refuses to parse the whole file; only a bare `${VAR}` works.
 - **Uploads**: `Plug.Parsers` allows up to 200 MB; static served from `/uploads` and app statics.
 - **Two DB "repos"**: `GitGud.DB` (Postgres/Ecto) is not the same as `GitGud.MetaDB`
   (CubDB file store). Git objects live on disk under `GitGud.RepoStorage` (`git_root`).
