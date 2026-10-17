@@ -99,7 +99,7 @@ MIX_ENV=test mix test
 | New migration | `MIX_ENV=dev mix ecto.gen.migration <name>` (lands in `apps/gitgud/priv/db/migrations/`) |
 | Run tests | `MIX_ENV=test mix test` |
 | Run one test file | `MIX_ENV=test mix test apps/gitgud/test/gitgud/repo_test.exs` |
-| Format | `mix format` (Elixir defaults — see §8) |
+| Format | `mix format` (root `.formatter.exs` — see §8) |
 | Build production assets | `mix assets.deploy` (= `node build.js --deploy` + `phx.digest`) |
 | Start/stop DB | `docker compose -f docker-compose-dev.yml up -d` / `down` |
 
@@ -119,19 +119,22 @@ watcher automatically (`node build.js --watch`).
   A test that touches the DB cannot be `async: true` unless it manages its own sandbox.
 - Test support modules live in `apps/*/test/support/` (compiled only for `:test`;
   see `elixirc_paths(:test)` in each `mix.exs`).
-- **Known pre-existing failures:** ~25 web tests currently fail because legacy
-  `.eex` templates call `Routes.*` (i.e. `GitGud.Web.Router.Helpers`, no longer
-  generated). The project is mid-migration to `Phoenix.VerifiedRoutes`
-  (`GitGud.Web.verified_routes/0`). These failures are **not** environment-related —
-  don't "fix" them by changing DB config; they need the templates/helpers updated.
+- The `:gitgud_web` suite is currently **green** (`107 tests, 0 failures, 4 skipped`).
+  Route generation is available from both worlds: the legacy `Routes.*` helpers
+  (`GitGud.Web.Router.Helpers`, still generated in Phoenix 1.7) and
+  `Phoenix.VerifiedRoutes` (`~p`/`url/1`). Controllers/live views get verified routes
+  via `use GitGud.Web, :controller`/`:html`, legacy views via `use GitGud.Web, :view`,
+  and tests via `GitGud.Web.ConnCase` (`use GitGud.Web, :verified_routes`).
 
 ## 8. Conventions & style
 
 - Elixir 1.17 / OTP 27. Umbrella where each child app sets
   `build_path: "../../_build"`, `deps_path: "../../deps"`, `lockfile: "../../mix.lock"`.
 - Namespacing: `GitRekt.*`, `GitGud.*` (domain), `GitGud.Web.*` (web).
-- **No root `.formatter.exs`** exists, so `mix format` uses Elixir defaults. If you add
-  one, wire it through the umbrella inputs so child apps share it.
+- A root **`.formatter.exs`** globs every child app (`apps/*/{lib,test}`) and enables
+  `Phoenix.LiveView.HTMLFormatter`, so `mix format` also formats `.heex`/`.leex`.
+  It was added after the codebase was written, so the first `mix format` produces a
+  large diff — format only the files you touch instead of the whole tree.
 - Config is layered: `config/config.exs` wildcard-imports every `apps/*/config/config.exs`,
   then imports the env-specific file. Production values come from `config/runtime.exs`
   env vars (`SECRET_KEY_BASE`, `DATABASE_URL`, `GIT_ROOT`, `SSH_HOST_KEY_DIR`,

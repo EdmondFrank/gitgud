@@ -3,7 +3,7 @@ defmodule GitGud.Mailer do
   Conveniences for composing and sending emails.
   """
   use Bamboo.Mailer, otp_app: :gitgud_web
-  use Bamboo.Phoenix, view: GitGud.Web.MailerView
+  use Bamboo.Phoenix, view: GitGud.Web.MailerHTML
 
   alias GitGud.Email
 
@@ -41,6 +41,6 @@ defmodule GitGud.Mailer do
     email_from = System.get_env("SMTP_FROM") || "gitgud <no-reply@gitgud.one>"
     new_email()
     |> from(email_from)
-    |> put_html_layout({GitGud.Web.LayoutView, "mailer.html"})
+    |> put_html_layout({GitGud.Web.Layouts, "mailer.html"})
   end
 end

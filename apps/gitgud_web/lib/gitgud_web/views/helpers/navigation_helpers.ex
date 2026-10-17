@@ -16,6 +16,18 @@ defmodule GitGud.Web.NavigationHelpers do
   end
 
   @doc """
+  Returns the current live view *helper* and *action* as a tuple, based on the
+  layout `assigns`.
+
+  During the static (dead) render of a LiveView the `socket` assigns are not
+  available, so the route information has to be read from the layout assigns.
+  """
+  @spec current_live_route(map) :: {atom, atom}
+  def current_live_route(assigns) do
+    {helper_name(assigns[:socket].view), assigns[:live_action]}
+  end
+
+  @doc """
   Returns `true` if `conn` matches the given route `helper`; otherwhise return `false`.
   """
   @spec current_route?(Plug.Conn.t, atom, []) :: boolean

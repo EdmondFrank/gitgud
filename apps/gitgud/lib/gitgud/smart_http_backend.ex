@@ -212,7 +212,7 @@ defmodule GitGud.SmartHTTPBackend do
       service not in ["git-receive-pack", "git-upload-pack",
                        "git-lfs-transfer-verify", "git-lfs-transfer-download", "git-lfs-transfer-upload"] ->
         {:error, :bad_request}
-      repo = RepoQuery.user_repo(user_login, String.slice(repo_name, 0..-5//-1), viewer: conn.assigns[:current_user]) ->
+      repo = RepoQuery.user_repo(user_login, String.trim_trailing(repo_name, ".git"), viewer: conn.assigns[:current_user]) ->
         cond do
           authorized?(conn, repo, service) ->
             {:ok, repo}
@@ -296,7 +296,7 @@ defmodule GitGud.SmartHTTPBackend do
       size: object["size"],
       actions: %{
         action =>  %{
-          href: "/#{user_login}/#{repo_name}/objects/#{object["oid"]}"
+          href: "/#{user_login}/#{repo_name}/info/lfs/objects?oid=#{object["oid"]}"
         }
       }
     }

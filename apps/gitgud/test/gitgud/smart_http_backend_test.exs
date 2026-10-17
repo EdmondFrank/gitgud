@@ -95,6 +95,38 @@ defmodule GitGud.SmartHTTPBackendTest do
     end
   end
 
+  describe "when repository uses Git LFS" do
+    test "returns an upload action pointing to the LFS objects endpoint", %{user: user, repo: repo} do
+      oid = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      body = Jason.encode!(%{operation: "upload", objects: [%{oid: oid, size: 42}]})
+
+      conn =
+        conn(:post, "/#{repo.owner_login}/#{repo.name}.git/info/lfs/objects/batch", body)
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("authorization", "Basic " <> Base.encode64("#{user.login}:qwertz"))
+        |> SmartHTTPBackendRouter.call([])
+
+      assert conn.status == 200
+      assert %{"objects" => [object]} = Jason.decode!(conn.resp_body)
+      assert object["oid"] == oid
+      assert %{"upload" => %{"href" => href}} = object["actions"]
+      assert href == "/#{repo.owner_login}/#{repo.name}.git/info/lfs/objects?oid=#{oid}"
+    end
+
+    test "returns a 404 error object for an unknown download", %{user: user, repo: repo} do
+      body = Jason.encode!(%{operation: "download", objects: [%{oid: "unknown", size: 1}]})
+
+      conn =
+        conn(:post, "/#{repo.owner_login}/#{repo.name}.git/info/lfs/objects/batch", body)
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("authorization", "Basic " <> Base.encode64("#{user.login}:qwertz"))
+        |> SmartHTTPBackendRouter.call([])
+
+      assert conn.status == 200
+      assert %{"objects" => [%{"oid" => "unknown", "error" => %{"code" => 404}}]} = Jason.decode!(conn.resp_body)
+    end
+  end
+
   #
   # Helpers
   #

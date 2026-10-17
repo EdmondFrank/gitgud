@@ -1,11 +1,19 @@
-<div class="columns">
-  <aside class="menu column is-one-fifth">
-    <ul class="menu-list">
-      <li><%= navigation_item @conn, :repo, [only: [:edit, :update]], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings" do %>Settings<% end %></li>
-      <li><%= navigation_item @conn, :maintainer, [], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings/maintainers" do %>Maintainers<% end %></li>
-    </ul>
-  </aside>
-  <div class="column">
-    <%= @inner_content %>
+<.page_header conn={assigns[:conn]} socket={assigns[:socket]} current_user={assigns[:current_user]} flash={assigns[:flash]} />
+
+<% {helper, action} = current_route(@conn) %>
+
+<main class="container">
+  <.repo_header repo={@repo} helper={helper} action={action} current_user={assigns[:current_user]} />
+
+  <div class="columns">
+    <aside class="menu column is-one-fifth">
+      <ul class="menu-list">
+        <li><%= navigation_item @conn, :repo, [only: [:edit, :update]], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings" do %>Settings<% end %></li>
+        <li><%= navigation_item @conn, :maintainer, [], :a, href: ~p"/#{@repo.owner_login}/#{@repo.name}/settings/maintainers" do %>Maintainers<% end %></li>
+      </ul>
+    </aside>
+    <div class="column">
+      <%= @inner_content %>
+    </div>
   </div>
-</div>
+</main>

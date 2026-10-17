@@ -7,7 +7,7 @@ defmodule GitGud.Web.OAuth2View do
   @spec signin_button(Plug.Conn.t(), binary, keyword) :: binary
   def signin_button(conn, provider, attrs \\ []) do
     attrs
-    |> Keyword.put(:to, "/auth/#{provider}")
+    |> Keyword.put(:to, ~p"/auth/#{provider}")
     |> Keyword.put_new(:class, "button is-small #{provider}")
     |> link(
       do: [

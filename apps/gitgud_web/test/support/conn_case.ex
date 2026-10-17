@@ -20,6 +20,8 @@ defmodule GitGud.Web.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
 
+      use GitGud.Web, :verified_routes
+
       alias GitGud.Web.Router.Helpers, as: Routes
 
       @endpoint GitGud.Web.Endpoint

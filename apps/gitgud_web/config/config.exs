@@ -10,7 +10,7 @@ config :gitgud_web, GitGud.Web.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "Orcr/BYzysTwrdJaOA7vu7miC2V5M2ivU6yMY7hW1cUnegxFej5GLalozFC+f6uA",
   live_view: [signing_salt: "+GxMLCpWTHUwhpTzG0SBr+DULSa+gzYA"],
-  render_errors: [view: GitGud.Web.ErrorView, accepts: ~w(html)],
+  render_errors: [formats: [html: GitGud.Web.ErrorHTML], layout: {GitGud.Web.Layouts, :error}],
   pubsub_server: GitGud.Web.PubSub,
   server: true
 

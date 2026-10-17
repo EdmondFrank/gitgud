@@ -9,10 +9,13 @@ defmodule GitGud.Web.Endpoint do
   @session_opts [
     store: :cookie,
     key: "_gitgud_web_key",
-    signing_salt: "zMguVWdH"
+    signing_salt: "zMguVWdH",
+    same_site: "Lax"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_opts]]
+  socket "/live", Phoenix.LiveView.Socket,
+    websocket: [connect_info: [session: @session_opts]],
+    longpoll: false
 
   plug Plug.Static,
     at: "/uploads",
@@ -31,7 +34,7 @@ defmodule GitGud.Web.Endpoint do
   end
 
   plug Plug.RequestId
-  plug Plug.Logger
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
@@ -44,13 +47,4 @@ defmodule GitGud.Web.Endpoint do
   plug Plug.Session, @session_opts
 
   plug GitGud.Web.Router
-
-  def init(_key, config) do
-    if config[:load_from_system_env] do
-      port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
-      {:ok, Keyword.put(config, :http, [:inet6, port: port])}
-    else
-      {:ok, config}
-    end
-  end
 end

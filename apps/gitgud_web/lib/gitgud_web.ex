@@ -11,7 +11,7 @@ defmodule GitGud.Web do
   @doc false
   def static_paths, do: ~w(assets css fonts images js favicon apple-touch-icon icon-192 icon-512 manifest robots)
 
-  def verified_routes do
+  def verified_routes(_opts \\ []) do
     quote do
       use Phoenix.VerifiedRoutes,
         endpoint: GitGud.Web.Endpoint,
@@ -115,10 +115,9 @@ defmodule GitGud.Web do
   end
 
   @doc false
-  def live_view(_opts) do
+  def live_view(opts) do
     quote do
-      use Phoenix.LiveView,
-        layout: {GitGud.Web.Layouts, :app}
+      use Phoenix.LiveView, unquote(opts)
 
       unquote(html_helpers())
 
@@ -213,6 +212,8 @@ defmodule GitGud.Web do
       import Phoenix.View
       import Phoenix.LiveView.Helpers
       import Phoenix.Component
+
+      unquote(verified_routes())
 
       import GitGud.GraphQL.Schema, only: [to_relay_id: 1, to_relay_id: 2]
 

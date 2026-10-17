@@ -3,6 +3,8 @@ defmodule GitGud.GraphQL.Resolvers do
   Module providing resolution functions for GraphQL related queries.
   """
 
+  use GitGud.Web, :verified_routes
+
   alias GitRekt.GitAgent
   alias GitRekt.{GitCommit, GitRef, GitTag, GitTree, GitBlob}
 
@@ -114,19 +116,19 @@ defmodule GitGud.GraphQL.Resolvers do
   """
   @spec url(map, %{}, Absinthe.Resolution.t) :: {:ok, binary} | {:error, term}
   def url(%User{login: login} = _resource, %{} = _args, _info) do
-    {:ok, "/#{login}"}
+    {:ok, url(~p"/#{login}")}
   end
 
   def url(%Repo{} = repo, %{} = _args, _info) do
-    {:ok, "/#{repo.owner_login}/#{repo.name}"}
+    {:ok, url(~p"/#{repo.owner_login}/#{repo.name}")}
   end
 
   def url(%GitRef{name: name} = _reference, %{} = _args, %Absinthe.Resolution{context: ctx} = _info) do
-    {:ok, "/#{ctx.repo.owner_login}/#{ctx.repo.name}/tree/#{name}"}
+    {:ok, url(~p"/#{ctx.repo.owner_login}/#{ctx.repo.name}/tree/#{name}")}
   end
 
   def url(%GitCommit{oid: oid} = _commit, %{} = _args, %Absinthe.Resolution{context: ctx} = _info) do
-    {:ok, "/#{ctx.repo.owner_login}/#{ctx.repo.name}/commit/#{oid_fmt(oid)}"}
+    {:ok, url(~p"/#{ctx.repo.owner_login}/#{ctx.repo.name}/commit/#{oid_fmt(oid)}")}
   end
 
   @doc """
@@ -605,7 +607,7 @@ defmodule GitGud.GraphQL.Resolvers do
   """
   @spec issue_commit_reference_event_url(map, %{}, Absinthe.Resolution.t) :: {:ok, binary}
   def issue_commit_reference_event_url(%{"commit_hash" => hash, "repo_id" => repo_id}, _args, %Absinthe.Resolution{context: ctx} = _info) do
-    batch({__MODULE__, :batch_repos_by_ids, ctx[:current_user]}, repo_id, fn repos -> {:ok, "/#{repos[repo_id].owner}/#{repos[repo_id].name}/commit/#{hash}"} end)
+    batch({__MODULE__, :batch_repos_by_ids, ctx[:current_user]}, repo_id, fn repos -> {:ok, url(~p"/#{repos[repo_id].owner}/#{repos[repo_id].name}/commit/#{hash}")} end)
   end
 
   @doc """
