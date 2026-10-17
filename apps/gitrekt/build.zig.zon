@@ -1,0 +1,11 @@
+.{
+    .name = .gitrekt,
+    .version = "0.3.9",
+    .minimum_zig_version = "0.17.0",
+    .fingerprint = 0xae9fd31d5e32c493,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "c_src",
+    },
+}

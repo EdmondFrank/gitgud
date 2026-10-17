@@ -19,7 +19,7 @@ The umbrella is split into three applications (see `guides/Getting Started.md`):
 
 | App | Path | Responsibility |
 | --- | --- | --- |
-| `:gitrekt` | `apps/gitrekt` | Low-level Git bindings to **libgit2** via a C **NIF** (`geef_nif.so`, `c_src/*.c`) plus native Git transfer protocols (upload-pack/receive-pack) and PACK format. Compiled with `elixir_make` + `Makefile`. |
+| `:gitrekt` | `apps/gitrekt` | Low-level Git bindings to **libgit2** via a **NIF** (`geef_nif.so`, `c_src/*.c`) plus native Git transfer protocols (upload-pack/receive-pack) and PACK format. Built by `elixir_make` + `Makefile`, which drives `zig build` (`build.zig`) — both locally and in the production image. |
 | `:gitgud` | `apps/gitgud` | Domain layer: Ecto schemas (`GitGud.User`, `GitGud.Repo`, …), query modules (`*Query`), DB repos (`GitGud.DB` = Postgres; `GitGud.MetaDB` = CubDB key-value store), `GitGud.ContentStore` (LFS objects), authorization, repository pool/storage/supervisor, `GitGud.SSHServer`, `GitGud.SmartHTTPBackend` (Plug). |
 | `:gitgud_web` | `apps/gitgud_web` | Phoenix 1.7 web app: `Endpoint`, `Router`, controllers, views (legacy `.eex`) and **LiveView**, components, plugs, **GraphQL schema** (`lib/gitgud/graphql`), file uploaders (Waffle), mailer (Bamboo). |
 
@@ -33,9 +33,17 @@ Key entry points:
 
 ## 3. Prerequisites
 
-- **ASDF** with the versions in `.tool-versions`: `elixir 1.18.2-otp-27`, `erlang 27.1.2`.
-  (Elixir ≥ 1.18 is required by `anubis_mcp`, the MCP server framework — see `guides/MCP.md`.)
-- **libgit2** installed (`brew install libgit2` on macOS; `libgit2-dev` on Debian/Ubuntu). `gitrekt` compiles a C NIF that links against it.
+- **ASDF** with the versions in `.tool-versions`: `elixir 1.18.2-otp-27`, `erlang 27.1.2`,
+  `zig 0.17.0`. (Elixir ≥ 1.18 is required by `anubis_mcp`, the MCP server framework — see
+  `guides/MCP.md`.)
+- **libgit2** installed (`brew install libgit2` on macOS; `libgit2-dev` on Debian/Ubuntu). `gitrekt` compiles a NIF that links against it.
+- **Zig 0.17** builds that NIF (`apps/gitrekt/build.zig`). It replaced the raw `$(CC)`
+  invocation because GCC 14 and clang 20+ promote several C diagnostics — notably
+  `-Wincompatible-pointer-types` — from warnings to **errors**, which broke the build on
+  modern toolchains. `asdf install` provides it locally; the production image installs
+  the same version from the official tarball (Alpine only packages zig ≤ 0.16, while the
+  Linux tarball is statically linked, so it runs on musl). `pkgconf` must be installed too —
+  `zig build` resolves `libgit2` through `libgit2.pc`.
 - **Node.js** (for the asset pipeline; `asdf` provides it).
 - **Docker** with Compose (for the PostgreSQL database).
 - `libcluster` is used for distribution; a single node works for local dev.
@@ -71,7 +79,14 @@ Open <http://localhost:4000>. Clone over SSH with `ssh://git@localhost:9989/<use
 > `apps/gitgud/config/dev.exs` — keep them in sync.
 >
 > The other file, `docker-compose.yml`, is the **production release image**
-> (`ccr.ccs.tencentyun.com/edmondfrank/gitfrank`). Do **not** use it for local development.
+> (`ccr.ccs.tencentyun.com/edmondfrank/gitfrank`); `docker compose -f docker-compose.yml build`
+> builds and tags it. Do **not** use it for local development.
+>
+> That image builds entirely behind mirrors — apk (tuna), hex (upyun), npm (npmmirror)
+> and the Zig tarball — all declared as `ARG`s at the top of the `Dockerfile`, so
+> `--build-arg APK_MIRROR_HOST=… NPM_REGISTRY=… ZIG_MIRROR=…` switches to upstream
+> endpoints. `.dockerignore` keeps `_build/`, `deps/`, `node_modules/`, the Zig cache
+> and `.env` out of the build context.
 
 SSH host keys must exist in `apps/gitgud/priv/ssh-keys/` (generate with
 `ssh-keygen -m PEM -t rsa -f apps/gitgud/priv/ssh-keys/ssh_host_rsa_key`).
@@ -105,6 +120,7 @@ MIX_ENV=test mix test
 | Format | `mix format` (root `.formatter.exs` — see §8) |
 | Build production assets | `mix assets.deploy` (= `node build.js --deploy` + `phx.digest`) |
 | Start/stop DB | `docker compose -f docker-compose-dev.yml up -d` / `down` |
+| Build the production image | `docker compose -f docker-compose.yml build` |
 
 Asset pipeline: `apps/gitgud_web/assets/build.js` uses **esbuild** + `esbuild-sass-plugin`
 (entry `js/index.js`, output `../priv/static/assets`). In dev the endpoint runs the
@@ -154,8 +170,16 @@ watcher automatically (`node build.js --watch`).
 
 - **`MIX_ENV=prod` in the shell** — see §5. This is the #1 source of confusing failures.
 - **libgit2 / NIF compilation** — `:gitrekt` compiles `c_src/*.c` into `priv/geef_nif.so`
-  during `mix compile`. If compilation or git ops fail, verify libgit2 is installed
-  (`brew --prefix libgit2`) and that `make`/a C compiler is available.
+  during `mix compile`. The `Makefile` delegates to `zig build` (`apps/gitrekt/build.zig`)
+  when a `zig` is on `PATH`, and otherwise falls back to the system `$(CC)`; both paths work.
+  If compilation or git ops fail, verify libgit2 is installed (`brew --prefix libgit2`),
+  that `zig version` reports 0.17.0 in the repo, and that `pkg-config --modversion libgit2`
+  resolves. `ZIG_TARGET=<triple>` (e.g. `x86_64-linux-musl`) forces an explicit
+  `-Dtarget`; the default is native. Cross-compiling the NIF for another target
+  additionally needs that target's `libgit2` and `zlib` headers/libraries — Zig does not
+  bundle them. The container takes the same path (Zig in `/opt/zig`, symlinked to
+  `/usr/local/bin/zig`); note that Alpine 3.21 there ships **libgit2 1.8.4**, whose
+  `git_odb_writepack` does expose the `free` callback `c_src/odb.c` relies on.
 - **MetaDB & ContentStore need `:data_dir`** — `GitGud.MetaDB.start_link/1` and
   `GitGud.ContentStore.start_link/1` `Keyword.fetch!` their `:data_dir`. Both dev and
   test configs set it (test writes under `apps/gitgud/test/data/`).

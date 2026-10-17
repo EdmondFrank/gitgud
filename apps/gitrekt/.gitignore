@@ -21,3 +21,7 @@ erl_crash.dump
 
 # NIF library
 priv/geef_nif.so*
+
+# Zig build cache / install prefix (see build.zig)
+/.zig-cache/
+/zig-out/

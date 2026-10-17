@@ -16,7 +16,12 @@ void geef_odb_free(ErlNifEnv *env, void *cd)
 void geef_odb_writepack_free(ErlNifEnv *env, void *cd)
 {
 	geef_odb_writepack *odb_writepack = (geef_odb_writepack *)cd;
-	git_odb_free(odb_writepack->odb_writepack);
+
+	/* `git_odb_write_pack/4` allocates a `git_odb_writepack`, which owns its own
+	 * `free` callback (see git2/odb_backend.h). It is *not* a `git_odb`, so it
+	 * must never be released with `git_odb_free/1`. */
+	if (odb_writepack->odb_writepack != NULL && odb_writepack->odb_writepack->free != NULL)
+		odb_writepack->odb_writepack->free(odb_writepack->odb_writepack);
 }
 
 static int noop_indexer_progress_callback(const git_indexer_progress *progress, void *payload)

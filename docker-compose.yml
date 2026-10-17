@@ -2,6 +2,13 @@ version: "2.0"
 services:
   gitgud:
     image: ccr.ccs.tencentyun.com/edmondfrank/gitfrank:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Zig version / mirrors default to the values in the Dockerfile; override
+        # here (or with `--build-arg`) when building outside China.
+        APP_REVISION: ${APP_REVISION:-unknown}
     restart: always
     container_name: gitgud
     env_file: .env

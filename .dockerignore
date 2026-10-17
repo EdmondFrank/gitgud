@@ -1,0 +1,33 @@
+# Build-context hygiene: keep local artifacts, caches and secrets out of
+# `docker build`. Nothing the Dockerfile COPYs may be listed here — it copies
+# `mix.exs`, `mix.lock`, `config/`, `entrypoint.sh`,
+# `apps/*/{mix.exs,config,lib,priv}`, `apps/gitrekt/{Makefile,build.zig,build.zig.zon,c_src}`
+# and `apps/gitgud_web/{assets,priv}`.
+
+# VCS, editors, agent scratch
+.git
+.gitignore
+.aider*
+.DS_Store
+
+# Dependencies & build output — fetched/compiled inside the image
+_build
+deps
+**/node_modules
+
+# Native artifacts — rebuilt by `zig build` through elixir_make
+apps/gitrekt/.zig-cache
+apps/gitrekt/zig-out
+apps/gitrekt/priv/geef_nif.so
+
+# Runtime state & logs
+apps/*/log
+apps/*/priv/meta-data
+apps/gitgud/test/data
+priv
+erl_crash.dump
+
+# Secrets (the image reads them from the environment at runtime)
+.env
+.env.*
+!.env.example

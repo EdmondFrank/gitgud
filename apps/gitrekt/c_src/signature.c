@@ -9,7 +9,10 @@ int geef_signature_from_erl(git_signature **out, ErlNifEnv *env, ERL_NIF_TERM *e
 	const ERL_NIF_TERM *tuple;
 	ErlNifBinary name, email;
 	git_signature *sig;
-	git_time_t gtime;
+	/* `enif_get_int64/3` aliases `enif_get_long/3` on LP64 (SIZEOF_LONG == 8),
+	 * so the value has to be read into a `long` and then cast to `git_time_t`
+	 * (which is `long long` on Darwin). */
+	long gtime;
 	int offset, arity;
 
 	memset(&name, 0, sizeof(ErlNifBinary));
@@ -33,13 +36,16 @@ int geef_signature_from_erl(git_signature **out, ErlNifEnv *env, ERL_NIF_TERM *e
 	if (!geef_terminate_binary(&email))
 		goto on_oom;
 
-	if (!enif_get_uint(env, tuple[2], &gtime))
+	/* `gtime` is a 64-bit `git_time_t`, not an `unsigned int`: reading it with
+	 * `enif_get_uint/3` would only fill the lower 4 bytes (leaving the upper
+	 * half indeterminate) and would truncate timestamps past 2106. */
+	if (!enif_get_int64(env, tuple[2], &gtime))
 		goto on_badarg;
 
 	if (!enif_get_int(env, tuple[3], &offset))
 		goto on_badarg;
 
-	error = git_signature_new(&sig, (char *)name.data, (char *)email.data, gtime, offset);
+	error = git_signature_new(&sig, (char *)name.data, (char *)email.data, (git_time_t) gtime, offset);
 	if (error < 0) {
 		enif_release_binary(&name);
 		enif_release_binary(&email);
@@ -121,7 +127,9 @@ geef_signature_new(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 	git_signature *sig;
 	size_t len;
 	int error;
-	unsigned int at;
+	long at = 0;
+	git_time_t when_time;
+	int when_offset;
 
 	if (!enif_inspect_binary(env, argv[0], &name))
 		return enif_make_badarg(env);
@@ -129,7 +137,7 @@ geef_signature_new(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 	if (!enif_inspect_binary(env, argv[1], &email))
 		return enif_make_badarg(env);
 
-	if (argc == 3 && !enif_get_uint(env, argv[2], &at))
+	if (argc == 3 && !enif_get_int64(env, argv[2], &at))
 		return enif_make_badarg(env);
 
 	if (!geef_terminate_binary(&name))
@@ -140,10 +148,13 @@ geef_signature_new(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 		return atoms.error;
 	}
 
+	/* Without an explicit timestamp, use the current time; with one, honour it.
+	 * These branches were previously inverted (and `at` was read uninitialised
+	 * in the 2-arity case). */
 	if (argc == 3)
-		error = git_signature_now(&sig, (char *)name.data, (char *)email.data);
+		error = git_signature_new(&sig, (char *)name.data, (char *)email.data, (git_time_t) at, 0);
 	else
-		error = git_signature_new(&sig, (char *)name.data, (char *)email.data, at, 0);
+		error = git_signature_now(&sig, (char *)name.data, (char *)email.data);
 
 	if (error < 0)
 		return geef_error_struct(env, error);
@@ -159,14 +170,21 @@ geef_signature_new(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 		goto on_error;
 
 	memcpy(email.data, sig->email, len);
+
+	/* `sig` is released just below, so snapshot the time fields first: reading
+	 * them afterwards was a use-after-free. The arities were also swapped —
+	 * `signature_new/2` returns `{:ok, name, email}` and
+	 * `signature_new/3` returns `{:ok, name, email, time, offset}`. */
+	when_time = sig->when.time;
+	when_offset = sig->when.offset;
 	git_signature_free(sig);
 
 	if (argc == 3)
-		return enif_make_tuple3(env, atoms.ok, enif_make_binary(env, &name), enif_make_binary(env, &email));
+		return enif_make_tuple5(env, atoms.ok,
+		         enif_make_binary(env, &name), enif_make_binary(env, &email),
+			 enif_make_ulong(env, when_time), enif_make_uint(env, when_offset));
 
-	return enif_make_tuple5(env, atoms.ok,
-	         enif_make_binary(env, &name), enif_make_binary(env, &email),
-		 enif_make_ulong(env, sig->when.time), enif_make_uint(env, sig->when.offset));
+	return enif_make_tuple3(env, atoms.ok, enif_make_binary(env, &name), enif_make_binary(env, &email));
 
 on_error:
 		git_signature_free(sig);
