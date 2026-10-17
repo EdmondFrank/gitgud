@@ -36,7 +36,12 @@ defmodule GitGud.Mixfile do
       {:absinthe, "~> 1.7", optional: true},
       {:argon2_elixir, "~> 3.0"},
       {:cubdb, "~> 2.0"},
-      {:ecto, "~> 3.9"},
+      # `override: true` keeps Ecto pinned at 3.9: `anubis_mcp -> peri` optionally
+      # requires `ecto ~> 3.12`, which only conflicts because gitfrank already depends
+      # on Ecto. It must be declared here, not only in the umbrella root — a `mix` run
+      # inside this app (`cd apps/gitgud_web && mix assets.deploy` in the Dockerfile)
+      # never loads the root `mix.exs`, so a root-only override does not apply.
+      {:ecto, "~> 3.9", override: true},
       {:ecto_sql, "~> 3.9"},
       {:faker, "~> 0.17", only: :test},
       {:gitrekt, in_umbrella: true},

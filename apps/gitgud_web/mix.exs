@@ -43,6 +43,11 @@ defmodule GitGud.Web.Mixfile do
       {:bamboo_phoenix, "~> 1.0"},
       {:earmark, "~> 1.4"},
       {:cmark, "~> 0.10.0"},
+      # Same pin as the umbrella root, but it has to be repeated here: the check that
+      # fails is the one Mix runs in *this* app's context (`mix assets.deploy` in the
+      # Dockerfile), and that run never loads the root `mix.exs`. See
+      # `apps/gitgud/mix.exs` / `mix.exs` — no version changes, just `override: true`.
+      {:ecto, "~> 3.9", override: true},
       {:floki, "~> 0.33", only: :test},
       {:gettext, "~> 0.20"},
       {:gitgud, in_umbrella: true},
