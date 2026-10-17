@@ -1,6 +1,6 @@
 ARG ELIXIR_VERSION=1.18.2
-ARG ERLANG_VERSION=27.1.2
-ARG ALPINE_VERSION=3.20.3
+ARG ERLANG_VERSION=27.3
+ARG ALPINE_VERSION=3.21.3
 ARG LINUX_VERSION=alpine-$ALPINE_VERSION
 
 FROM docker.1ms.run/hexpm/elixir:$ELIXIR_VERSION-erlang-$ERLANG_VERSION-$LINUX_VERSION as build
@@ -12,9 +12,16 @@ ENV HEX_CDN="https://hexpm.upyun.com"
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 WORKDIR /build
 
-RUN apk add --no-cache build-base erlang-dev libgit2-dev git nodejs npm && \
-    mix local.hex --force && \
-    mix local.rebar --force
+# `mix local.hex`/`local.rebar` cap downloads at 60s (Mix.Utils.fetch_url) and fail
+# on slow links; HEX_MIRROR only mirrors packages, not /installs. Fetch the
+# archives with curl (retry, no cap) and install them from disk instead. The
+# versions are those Mix resolves for Elixir 1.18.2 (hex-1.x.csv/rebar3-1.x.csv).
+ARG HEX_BUILDS_URL="https://builds.hex.pm"
+RUN apk add --no-cache build-base erlang-dev libgit2-dev git nodejs npm curl && \
+    curl -fsSL --retry 8 --retry-delay 5 -o /tmp/hex.ez "${HEX_BUILDS_URL}/installs/1.16.0/hex-2.5.3.ez" && \
+    curl -fsSL --retry 8 --retry-delay 5 -o /tmp/rebar3 "${HEX_BUILDS_URL}/installs/1.15.0-rc.0/rebar3-3.22.0" && \
+    mix archive.install /tmp/hex.ez --force && \
+    mix local.rebar rebar3 /tmp/rebar3 --force
 
 COPY mix.exs mix.lock ./
 COPY apps/gitrekt/mix.exs apps/gitrekt/
