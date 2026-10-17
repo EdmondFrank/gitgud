@@ -16,6 +16,7 @@ defmodule GitGud.User do
 
   alias GitGud.Account
   alias GitGud.Email
+  alias GitGud.PersonalAccessToken
   alias GitGud.Repo
   alias GitGud.SSHKey
   alias GitGud.GPGKey
@@ -34,27 +35,28 @@ defmodule GitGud.User do
     field :avatar_url, GitGud.Uploaders.Avatar.Type
     has_many :ssh_keys, SSHKey, on_delete: :delete_all
     has_many :gpg_keys, GPGKey, on_delete: :delete_all
+    has_many :personal_access_tokens, PersonalAccessToken, on_delete: :delete_all
     timestamps()
   end
 
   @type t :: %__MODULE__{
-    id: pos_integer,
-    login: binary,
-    name: binary,
-    account: Account.t,
-    primary_email: Email.t | nil,
-    public_email: Email.t | nil,
-    emails: [Email.t],
-    repos: [Repo.t],
-    bio: binary,
-    location: binary,
-    website_url: binary,
-    avatar_url: binary,
-    ssh_keys: [SSHKey.t],
-    gpg_keys: [GPGKey.t],
-    inserted_at: NaiveDateTime.t,
-    updated_at: NaiveDateTime.t
-  }
+          id: pos_integer,
+          login: binary,
+          name: binary,
+          account: Account.t(),
+          primary_email: Email.t() | nil,
+          public_email: Email.t() | nil,
+          emails: [Email.t()],
+          repos: [Repo.t()],
+          bio: binary,
+          location: binary,
+          website_url: binary,
+          avatar_url: binary,
+          ssh_keys: [SSHKey.t()],
+          gpg_keys: [GPGKey.t()],
+          inserted_at: NaiveDateTime.t(),
+          updated_at: NaiveDateTime.t()
+        }
 
   @doc """
   Creates a new user with the given `params`.
@@ -73,11 +75,12 @@ defmodule GitGud.User do
   ```
   This function validates the given `params` using `registration_changeset/2`.
   """
-  @spec create(map|keyword) :: {:ok, t} | {:error, Ecto.Changeset.t}
+  @spec create(map | keyword) :: {:ok, t} | {:error, Ecto.Changeset.t()}
   def create(params) do
     case create_with_primary_email(registration_changeset(%__MODULE__{}, Map.new(params))) do
       {:ok, %{user: user}} ->
         {:ok, put_in(user.account.password, nil)}
+
       {:error, _name, changeset, _changes} ->
         {:error, changeset}
     end
@@ -86,11 +89,14 @@ defmodule GitGud.User do
   @doc """
   Similar to `create/1`, but raises an `Ecto.InvalidChangesetError` if an error occurs.
   """
-  @spec create!(map|keyword) :: t
+  @spec create!(map | keyword) :: t
   def create!(params) do
     case create(params) do
-      {:ok, user} -> user
-      {:error, changeset} -> raise Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset
+      {:ok, user} ->
+        user
+
+      {:error, changeset} ->
+        raise Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset
     end
   end
 
@@ -113,7 +119,7 @@ defmodule GitGud.User do
   {:ok, user} = GitGud.User.update(user, :primary_email, email)
   ```
   """
-  @spec update(t, atom, struct | map | keyword) :: {:ok, t} | {:error, Ecto.Changeset.t}
+  @spec update(t, atom, struct | map | keyword) :: {:ok, t} | {:error, Ecto.Changeset.t()}
   def update(%__MODULE__{} = user, changeset_type, params) do
     DB.update(update_changeset(user, changeset_type, params))
   end
@@ -135,7 +141,7 @@ defmodule GitGud.User do
 
   User associations (repositories, comments, etc.) will automatically be deleted.
   """
-  @spec delete(t) :: {:ok, t} | {:error, Ecto.Changeset.t}
+  @spec delete(t) :: {:ok, t} | {:error, Ecto.Changeset.t()}
   def delete(%__MODULE__{} = user) do
     DB.delete(user)
   end
@@ -158,7 +164,7 @@ defmodule GitGud.User do
   @doc """
   Returns a changeset for the given registration `params`.
   """
-  @spec registration_changeset(t, map) :: Ecto.Changeset.t
+  @spec registration_changeset(t, map) :: Ecto.Changeset.t()
   def registration_changeset(%__MODULE__{} = user, params \\ %{}) do
     user
     |> cast(params, [:login, :name, :bio, :website_url, :location])
@@ -174,7 +180,7 @@ defmodule GitGud.User do
   @doc """
   Returns a changeset for the given profile `params`.
   """
-  @spec profile_changeset(t, map) :: Ecto.Changeset.t
+  @spec profile_changeset(t, map) :: Ecto.Changeset.t()
   def profile_changeset(%__MODULE__{} = user, params \\ %{}) do
     user
     |> cast(params, [:name, :public_email_id, :bio, :location, :website_url, :avatar_url])
@@ -187,7 +193,7 @@ defmodule GitGud.User do
   @doc """
   Returns a changeset for the given `avatar`.
   """
-  @spec avatar_changeset(t, map) :: Ecto.Changeset.t
+  @spec avatar_changeset(t, map) :: Ecto.Changeset.t()
   def avatar_changeset(%__MODULE__{} = user, params \\ %{}) do
     user
     |> cast(params, [])
@@ -197,8 +203,9 @@ defmodule GitGud.User do
   @doc """
   Returns a changeset for the given `email`.
   """
-  @spec email_changeset(t, :primary_email | :public_email, Email.t) :: Ecto.Changeset.t
+  @spec email_changeset(t, :primary_email | :public_email, Email.t()) :: Ecto.Changeset.t()
   def email_changeset(user, email_type, email)
+
   def email_changeset(%__MODULE__{} = user, :primary_email, email) do
     user
     |> struct(primary_email: nil)
@@ -218,7 +225,7 @@ defmodule GitGud.User do
 
   See `GitGud.Account.password_changeset/2` for more details.
   """
-  @spec password_changeset(t, map) :: Ecto.Changeset.t
+  @spec password_changeset(t, map) :: Ecto.Changeset.t()
   def password_changeset(%__MODULE__{} = user, params \\ %{}) do
     user
     |> cast(%{account: params}, [])
@@ -230,7 +237,7 @@ defmodule GitGud.User do
 
   See `GitGud.Account.oauth2_changeset/2` for more details.
   """
-  @spec oauth2_changeset(t, map) :: Ecto.Changeset.t
+  @spec oauth2_changeset(t, map) :: Ecto.Changeset.t()
   def oauth2_changeset(%__MODULE__{} = user, params \\ %{}) do
     user
     |> cast(%{account: params}, [])
@@ -249,21 +256,33 @@ defmodule GitGud.User do
   end
 
   defp set_verified_primary_email(db, %{user_: user}) do
-    if email = Enum.find(user.emails, &(&1.verified)),
+    if email = Enum.find(user.emails, & &1.verified),
       do: db.update(update_changeset(user, :primary_email, email)),
-    else: {:ok, user}
+      else: {:ok, user}
   end
 
   defp update_changeset(user, :profile, params), do: profile_changeset(user, Map.new(params))
   defp update_changeset(user, :password, params), do: password_changeset(user, Map.new(params))
   defp update_changeset(user, :oauth2, params), do: oauth2_changeset(user, Map.new(params))
-  defp update_changeset(user, changeset_type, %Email{verified: true} = email) when changeset_type in [:primary_email, :public_email], do: email_changeset(user, changeset_type, email)
+
+  defp update_changeset(user, changeset_type, %Email{verified: true} = email)
+       when changeset_type in [:primary_email, :public_email],
+       do: email_changeset(user, changeset_type, email)
 
   defp validate_login(changeset) do
     changeset
     |> validate_length(:login, min: 3, max: 24)
     |> validate_format(:login, ~r/^[a-zA-Z0-9_-]+$/)
-    |> validate_exclusion(:login, ["auth", "login", "logout", "graphql", "new", "password", "register", "settings"])
+    |> validate_exclusion(:login, [
+      "auth",
+      "login",
+      "logout",
+      "graphql",
+      "new",
+      "password",
+      "register",
+      "settings"
+    ])
     |> unique_constraint(:login)
   end
 
@@ -272,8 +291,10 @@ defmodule GitGud.User do
       case URI.parse(url) do
         %URI{scheme: nil} ->
           add_error(changeset, field, "invalid")
+
         %URI{host: nil} ->
           add_error(changeset, field, "invalid")
+
         %URI{} ->
           changeset
       end
@@ -283,14 +304,25 @@ defmodule GitGud.User do
   defp verify_oauth2_email(changeset) do
     if auth_changeset = get_change(changeset, :account) do
       emails = get_change(changeset, :emails, [])
+
       if email_changeset = !Enum.empty?(emails) && hd(emails) do
         providers = get_change(auth_changeset, :oauth2_providers)
+
         if provider_changeset = is_list(providers) && providers != [] && hd(providers) do
-          case Phoenix.Token.verify(GitGud.Web.Endpoint, get_change(provider_changeset, :token), provider_changeset.params["email_token"]) do
+          case Phoenix.Token.verify(
+                 GitGud.Web.Endpoint,
+                 get_change(provider_changeset, :token),
+                 provider_changeset.params["email_token"]
+               ) do
             {:ok, email_address} ->
               if email_address == get_change(email_changeset, :address) do
-                put_change(changeset, :emails, Enum.map(emails, &merge(&1, Email.verification_changeset(&1.data))))
+                put_change(
+                  changeset,
+                  :emails,
+                  Enum.map(emails, &merge(&1, Email.verification_changeset(&1.data)))
+                )
               end
+
             {:error, _reason} ->
               nil
           end

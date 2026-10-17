@@ -2,6 +2,9 @@ defmodule GitGud.Web.Router do
   @moduledoc false
   use GitGud.Web, :router
 
+  # AI-native MCP server config (build-time; see apps/gitgud_web/config/config.exs).
+  @mcp_config Application.compile_env(:gitgud_web, :mcp, [])
+
   pipeline :browser do
     plug :accepts, ["html", "json"]
     plug :fetch_session
@@ -17,13 +20,37 @@ defmodule GitGud.Web.Router do
     plug :authenticate
   end
 
-  if Mix.env == :dev do
+  # AI-native MCP server (see guides/MCP.md). `GitGud.MCP.AuthPlug` resolves a
+  # bearer token / personal access token / session cookie and halts
+  # unauthenticated requests with a JSON-RPC 401.
+  #
+  # No `:protect_from_forgery` here: this endpoint accepts a session cookie, but
+  # it only processes `application/json` JSON-RPC bodies (cross-site form posts
+  # cannot set that content type) and requires the `initialize` handshake, so the
+  # classic CSRF surface does not apply.
+  pipeline :mcp do
+    plug :fetch_session
+    plug GitGud.MCP.AuthPlug
+  end
+
+  if Mix.env() == :dev do
     forward "/sent_emails", Bamboo.SentEmailViewerPlug
   end
 
   scope "/graphql", GitGud.Web do
     pipe_through :graphql
     forward "/", GraphQLPlug
+  end
+
+  if @mcp_config[:enabled] do
+    scope "/" do
+      pipe_through :mcp
+
+      forward @mcp_config[:path] || "/api/mcp",
+              GitGud.MCP.LazyPlug,
+              server: GitGud.MCP.Server,
+              request_timeout: @mcp_config[:request_timeout] || 600_000
+    end
   end
 
   scope "/:user_login/:repo_name", GitGud do
@@ -86,6 +113,11 @@ defmodule GitGud.Web.Router do
     post "/settings/gpg", GPGKeyController, :create
     delete "/settings/gpg", GPGKeyController, :delete
 
+    get "/settings/tokens", TokenController, :index
+    get "/settings/tokens/new", TokenController, :new
+    post "/settings/tokens", TokenController, :create
+    delete "/settings/tokens", TokenController, :delete
+
     get "/settings/oauth2", OAuth2Controller, :index, as: :oauth2
     delete "/settings/oauth2", OAuth2Controller, :delete, as: :oauth2
 
@@ -93,7 +125,9 @@ defmodule GitGud.Web.Router do
     get "/:user_login/repositories", RepoController, :index
 
     scope "/:user_login/:repo_name" do
-      live_session :repo, layout: {GitGud.Web.Layouts, :repo}, root_layout: {GitGud.Web.Layouts, :root} do
+      live_session :repo,
+        layout: {GitGud.Web.Layouts, :repo},
+        root_layout: {GitGud.Web.Layouts, :root} do
         live "/", TreeBrowserLive, :show, as: :codebase
         live "/tree/:revision/*path", TreeBrowserLive, :tree, as: :codebase
         live "/blob/:revision/*path", BlobViewerLive, :blob, as: :codebase

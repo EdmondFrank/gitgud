@@ -25,13 +25,16 @@ The umbrella is split into three applications (see `guides/Getting Started.md`):
 
 Key entry points:
 - Supervision tree: `apps/gitgud/lib/gitgud/application.ex` (starts DB, MetaDB, ContentStore, RepoSupervisor, SSHServer).
+- AI-native MCP server (Streamable HTTP, `POST /api/mcp`): `apps/gitgud_web/lib/gitgud/mcp/` —
+  see `guides/MCP.md`. Started from `GitGud.Web.Application`; tools live under `GitGud.MCP.Tools.*`.
 - Routes: `apps/gitgud_web/lib/gitgud_web/router.ex`.
 - DB repos & migrations: `apps/gitgud/lib/gitgud/db.ex`, `apps/gitgud/priv/db/migrations/`.
 - Release migration task: `apps/gitgud/lib/gitgud/release_tasks.ex` (used by container entrypoint).
 
 ## 3. Prerequisites
 
-- **ASDF** with the versions in `.tool-versions`: `elixir 1.17.3-otp-27`, `erlang 27.1.2`.
+- **ASDF** with the versions in `.tool-versions`: `elixir 1.18.2-otp-27`, `erlang 27.1.2`.
+  (Elixir ≥ 1.18 is required by `anubis_mcp`, the MCP server framework — see `guides/MCP.md`.)
 - **libgit2** installed (`brew install libgit2` on macOS; `libgit2-dev` on Debian/Ubuntu). `gitrekt` compiles a C NIF that links against it.
 - **Node.js** (for the asset pipeline; `asdf` provides it).
 - **Docker** with Compose (for the PostgreSQL database).
@@ -119,7 +122,7 @@ watcher automatically (`node build.js --watch`).
   A test that touches the DB cannot be `async: true` unless it manages its own sandbox.
 - Test support modules live in `apps/*/test/support/` (compiled only for `:test`;
   see `elixirc_paths(:test)` in each `mix.exs`).
-- The `:gitgud_web` suite is currently **green** (`107 tests, 0 failures, 4 skipped`).
+- The `:gitgud_web` suite is currently **green** (`156 tests, 0 failures, 4 skipped`).
   Route generation is available from both worlds: the legacy `Routes.*` helpers
   (`GitGud.Web.Router.Helpers`, still generated in Phoenix 1.7) and
   `Phoenix.VerifiedRoutes` (`~p`/`url/1`). Controllers/live views get verified routes
@@ -128,7 +131,7 @@ watcher automatically (`node build.js --watch`).
 
 ## 8. Conventions & style
 
-- Elixir 1.17 / OTP 27. Umbrella where each child app sets
+- Elixir 1.18 / OTP 27. Umbrella where each child app sets
   `build_path: "../../_build"`, `deps_path: "../../deps"`, `lockfile: "../../mix.lock"`.
 - Namespacing: `GitRekt.*`, `GitGud.*` (domain), `GitGud.Web.*` (web).
 - A root **`.formatter.exs`** globs every child app (`apps/*/{lib,test}`) and enables
@@ -169,3 +172,38 @@ watcher automatically (`node build.js --watch`).
   generates SSH keys, `mix deps.get`, then `mix test`.
 - `CONTRIBUTING.md`: write tests, follow the Elixir community style guide, use good
   commit messages. Run `MIX_ENV=test mix test` before opening a PR.
+
+## 11. AI-native MCP server (`POST /api/mcp`)
+
+gitfrank exposes its domain over the **Model Context Protocol** (Streamable HTTP)
+so AI agents can drive it. Design + phased plan: `guides/MCP.md`; client setup
+(config snippets for AiderDesk / Claude Code / Zed / curl): `guides/MCP Clients.md`.
+
+- **Endpoint** — `POST /api/mcp`; the `:mcp` pipeline is `fetch_session` →
+  `GitGud.MCP.AuthPlug` (`apps/gitgud_web/lib/gitgud_web/router.ex`). Client
+  setup: `guides/MCP Clients.md`.
+- **Code** — `apps/gitgud_web/lib/gitgud/mcp/`: `server.ex` (tool registry),
+  `server_helpers.ex` (tool filtering + scope gate + telemetry), `auth_plug.ex`,
+  `authorization.ex` (resource **and** scope gates), `telemetry.ex`, and
+  `tools/*.ex` (one module per tool). Domain support lives in `:gitgud`
+  (`GitGud.PersonalAccessToken`, `PersonalAccessTokenQuery`).
+- **Auth** — `Authorization: Bearer <Phoenix.Token>` (24h), `Authorization: Bearer
+  gf_…` (personal access token) or `X-Api-Key: gf_…`, or the `:user_id` session
+  cookie. Unauthenticated requests get a JSON-RPC 401 (`-32001`).
+- **Scopes** — a PAT carries scopes (`user:read`, `repo:read`, `repo:write`,
+  `issue:read`, `issue:write`, `review:write`); `tools/list` is filtered by scope
+  and `tools/call` returns `insufficient_scope` when one is missing. Session/bearer
+  credentials are unrestricted. The resource gate (`GitGud.Authorization`) always
+  runs *in addition*.
+- **Settings UI** — `/settings/tokens` (`GitGud.Web.TokenController` +
+  `TokenHTML`) mints PATs; the plaintext is rendered once on create and never
+  logged.
+- **Config** — `:gitgud_web, :mcp` (`enabled`, `path`, `server_name`,
+  `server_version`, `request_timeout`, `session_idle_timeout`, `telemetry`).
+- **Telemetry** — `[:gitgud, :mcp, :tool, :call, :start | :stop]`; `:stop`
+  metadata is `%{tool:, result: :ok | :error | :denied, user_id:, scopes:,
+  session_id:, remote_ip:}`, logged by `GitGud.MCP.Telemetry.LoggerHandler`.
+- **Tests** — `apps/gitgud_web/test/gitgud/mcp/` (`server_test.exs`,
+  `tools_test.exs`, `write_tools_test.exs`, `personal_access_token_auth_test.exs`,
+  `telemetry_test.exs`), `apps/gitgud_web/test/gitgud_web/controllers/token_controller_test.exs`,
+  and `apps/gitgud/test/gitgud/personal_access_token_test.exs`.

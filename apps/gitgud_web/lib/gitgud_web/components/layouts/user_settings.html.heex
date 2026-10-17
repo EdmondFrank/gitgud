@@ -1,4 +1,9 @@
-<.page_header conn={assigns[:conn]} socket={assigns[:socket]} current_user={assigns[:current_user]} flash={assigns[:flash]} />
+<.page_header
+  conn={assigns[:conn]}
+  socket={assigns[:socket]}
+  current_user={assigns[:current_user]}
+  flash={assigns[:flash]}
+/>
 
 <main class="container">
   <h1 class="title">Settings</h1>
@@ -9,15 +14,47 @@
     <aside class="menu column is-one-fifth">
       <p class="menu-label">Account</p>
       <ul class="menu-list">
-        <li><%= navigation_item @conn, :user, [only: [:edit_profile, :update_profile]], :a, href: ~p"/settings/profile" do %>Profile<% end %></li>
-        <li><%= navigation_item @conn, :email, [], :a, href: ~p"/settings/emails" do %>Emails<% end %></li>
-        <li><%= navigation_item @conn, :oauth2, [], :a, href: ~p"/settings/oauth2" do %>OAuth2.0<% end %></li>
-        <li><%= navigation_item @conn, :user, [only: [:edit_password, :update_password, :verify_password_reset]], :a, href: ~p"/settings/password" do %>Password<% end %></li>
+        <li>
+          <%= navigation_item @conn, :user, [only: [:edit_profile, :update_profile]], :a, href: ~p"/settings/profile" do %>
+            Profile
+          <% end %>
+        </li>
+        <li>
+          <%= navigation_item @conn, :email, [], :a, href: ~p"/settings/emails" do %>
+            Emails
+          <% end %>
+        </li>
+        <li>
+          <%= navigation_item @conn, :oauth2, [], :a, href: ~p"/settings/oauth2" do %>
+            OAuth2.0
+          <% end %>
+        </li>
+        <li>
+          <%= navigation_item @conn, :user, [only: [:edit_password, :update_password, :verify_password_reset]], :a, href: ~p"/settings/password" do %>
+            Password
+          <% end %>
+        </li>
       </ul>
       <p class="menu-label">Public Keys</p>
       <ul class="menu-list">
-        <li><%= navigation_item @conn, :ssh_key, [], :a, href: ~p"/settings/ssh" do %>SSH keys<% end %></li>
-        <li><%= navigation_item @conn, :gpg_key, [], :a, href: ~p"/settings/gpg" do %>GPG keys<% end %></li>
+        <li>
+          <%= navigation_item @conn, :ssh_key, [], :a, href: ~p"/settings/ssh" do %>
+            SSH keys
+          <% end %>
+        </li>
+        <li>
+          <%= navigation_item @conn, :gpg_key, [], :a, href: ~p"/settings/gpg" do %>
+            GPG keys
+          <% end %>
+        </li>
+      </ul>
+      <p class="menu-label">Access</p>
+      <ul class="menu-list">
+        <li>
+          <%= navigation_item @conn, :token, [], :a, href: ~p"/settings/tokens" do %>
+            Personal access tokens
+          <% end %>
+        </li>
       </ul>
     </aside>
     <div class="column">

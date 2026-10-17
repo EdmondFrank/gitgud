@@ -9,10 +9,10 @@ defmodule GitGud.Web.Mixfile do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.14",
-      elixirc_paths: elixirc_paths(Mix.env),
-      compilers: Mix.compilers,
-      start_permanent: Mix.env == :prod,
+      elixir: "~> 1.18",
+      elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: Mix.compilers(),
+      start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps()
     ]
@@ -37,6 +37,7 @@ defmodule GitGud.Web.Mixfile do
       {:absinthe, "~> 1.7"},
       {:absinthe_relay, "~> 1.5"},
       {:absinthe_phoenix, "~> 2.0"},
+      {:anubis_mcp, "~> 1.14"},
       {:bamboo, "~> 2.2"},
       {:bamboo_smtp, "~> 4.2"},
       {:bamboo_phoenix, "~> 1.0"},
@@ -57,7 +58,8 @@ defmodule GitGud.Web.Mixfile do
       {:waffle_ecto, "~> 0.0"},
       {:plug, "~> 1.13"},
       {:plug_cowboy, "~> 2.5"},
-      {:timex, "~> 3.7"},
+      {:telemetry, "~> 1.1"},
+      {:timex, "~> 3.7"}
     ]
   end
 

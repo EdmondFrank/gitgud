@@ -8,7 +8,7 @@ defmodule GitGud.Umbrella.Mixfile do
       apps_path: "apps",
       version: @version,
       name: "gitgud",
-      start_permanent: Mix.env == :prod,
+      start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
       docs: docs(),
@@ -18,7 +18,7 @@ defmodule GitGud.Umbrella.Mixfile do
             gitgud_web: :permanent,
             runtime_tools: :permanent
           ],
-          include_executables_for: [:unix],
+          include_executables_for: [:unix]
         ]
       ]
     ]
@@ -30,6 +30,9 @@ defmodule GitGud.Umbrella.Mixfile do
 
   defp deps do
     [
+      # Pin Ecto 3.9: anubis_mcp -> peri optionally requires ecto ~> 3.12,
+      # which only conflicts because gitfrank already depends on Ecto.
+      {:ecto, "~> 3.9", override: true},
       {:benchee, "~> 1.1", only: :dev},
       {:ex_doc, "~> 0.28", only: :dev}
     ]
@@ -50,15 +53,15 @@ defmodule GitGud.Umbrella.Mixfile do
       source_ref: "v#{@version}",
       source_url: "https://gitee.com/edmondfrank/gitfrank",
       extras: [
-        "guides/Getting Started.md",
+        "guides/Getting Started.md"
       ],
       groups_for_modules: [
-        "Database": [
+        Database: [
           GitGud.DB,
           GitGud.DBQueryable,
           GitGud.ReleaseTasks
         ],
-        "Authorization": [
+        Authorization: [
           GitGud.Authorization,
           GitGud.AuthorizationPolicies
         ],
@@ -88,7 +91,7 @@ defmodule GitGud.Umbrella.Mixfile do
         "Repository Management": [
           GitGud.RepoPool,
           GitGud.RepoStorage,
-          GitGud.RepoSupervisor,
+          GitGud.RepoSupervisor
         ],
         "Git Transfer Protocols": [
           GitGud.SSHServer,
@@ -98,9 +101,9 @@ defmodule GitGud.Umbrella.Mixfile do
           GitGud.OAuth2.GitHub,
           GitGud.OAuth2.GitLab,
           GitGud.OAuth2.Gitee,
-          GitGud.OAuth2.Provider,
+          GitGud.OAuth2.Provider
         ],
-        "GraphQL": [
+        GraphQL: [
           GitGud.GraphQL.Resolvers,
           GitGud.GraphQL.Schema,
           GitGud.GraphQL.Schema.Compiled,
@@ -109,7 +112,7 @@ defmodule GitGud.Umbrella.Mixfile do
         "Email Delivery": [
           GitGud.Mailer
         ],
-        "Web": [
+        Web: [
           GitGud.Web,
           GitGud.Web.AuthenticationPlug,
           GitGud.Web.AuthenticationLiveHelpers,
@@ -180,7 +183,7 @@ defmodule GitGud.Umbrella.Mixfile do
           GitRekt.WireProtocol,
           GitRekt.WireProtocol.ReceivePack,
           GitRekt.WireProtocol.UploadPack
-        ],
+        ]
       ]
     ]
   end

@@ -1,0 +1,73 @@
+<div class="level">
+  <div class="level-left">
+    <div class="level-item">
+      <h2 class="subtitle">Personal access tokens</h2>
+    </div>
+  </div>
+  <div class="level-right">
+    <div class="level-item">
+      <a class="button is-success" href={~p"/settings/tokens/new"}>New access token</a>
+    </div>
+  </div>
+</div>
+
+<%= if Enum.empty?(@tokens) do %>
+  <article class="message is-light">
+    <div class="message-body">You have not created any personal access tokens.</div>
+  </article>
+<% else %>
+  <%= for token <- @tokens do %>
+    <div class="columns">
+      <div class="column is-12">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">
+              <%= token.name %>
+            </p>
+            <div class="card-header-icon" aria-label="more options">
+              <%= form_for @conn, ~p"/settings/tokens", [method: :delete, as: :token], fn f -> %>
+                <%= hidden_input(f, :id, value: token.id) %>
+                <button type="submit" class="delete"></button>
+              <% end %>
+            </div>
+          </header>
+          <div class="card-content">
+            <div class="content">
+              <div>
+                <label>Scopes:</label>
+                <%= for scope <- token.scopes do %>
+                  <span class="tag"><%= scope %></span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          <footer class="card-footer">
+            <p class="card-footer-item">
+              <span>
+                Created on <%= datetime_format(token.inserted_at, "{D} {Mshort} {YYYY}") %>
+              </span>
+            </p>
+            <p class="card-footer-item">
+              <span>
+                <%= if used_at = token.last_used_at do %>
+                  Used <%= datetime_format(used_at, "{D} {Mshort} {YYYY} {h24}:{m}") %>
+                <% else %>
+                  Never used
+                <% end %>
+              </span>
+            </p>
+            <p class="card-footer-item">
+              <span>
+                <%= if expires_at = token.expires_at do %>
+                  Expires <%= datetime_format(expires_at, "{D} {Mshort} {YYYY}") %>
+                <% else %>
+                  No expiry
+                <% end %>
+              </span>
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

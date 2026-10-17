@@ -1,0 +1,43 @@
+<h2 class="subtitle">Access token created</h2>
+
+<article class="message is-warning">
+  <div class="message-body">
+    Copy your new token now. For security reasons <strong>it will not be shown again</strong>.
+  </div>
+</article>
+
+<div class="field">
+  <label class="label">Token</label>
+  <div class="control">
+    <input class="input" type="text" value={@plaintext} readonly onclick="this.select()" />
+  </div>
+</div>
+
+<div class="field">
+  <label class="label">Name</label>
+  <p><%= @token.name %></p>
+</div>
+
+<div class="field">
+  <label class="label">Scopes</label>
+  <p>
+    <%= for scope <- @token.scopes do %>
+      <span class="tag"><%= scope %></span>
+    <% end %>
+  </p>
+</div>
+
+<div class="field">
+  <label class="label">Expires</label>
+  <p>
+    <%= if expires_at = @token.expires_at do %>
+      <%= datetime_format(expires_at, "{D} {Mshort} {YYYY}") %>
+    <% else %>
+      Never
+    <% end %>
+  </p>
+</div>
+
+<hr />
+
+<a class="button" href={~p"/settings/tokens"}>Back to tokens</a>
