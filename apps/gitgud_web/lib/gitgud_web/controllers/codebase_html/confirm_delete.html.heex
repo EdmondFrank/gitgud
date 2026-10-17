@@ -14,7 +14,7 @@
   </div>
 </nav>
 
-<%= form_for @changeset, ~p"/#{@repo.owner_login}/#{@repo.name}/delete/#{@revision}/#{@tree_path}", [as: :commit, method: :delete], fn f -> %>
+<%= form_for @changeset, ~p"/#{@repo.owner_login}/#{@repo.name}/#{@revision}/#{@tree_path}", [as: :commit, method: :delete], fn f -> %>
   <div class="box">
     <h2 class="subtitle">Commit changes</h2>
     <div class="field">
