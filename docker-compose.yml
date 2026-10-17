@@ -8,7 +8,9 @@ services:
       args:
         # Zig version / mirrors default to the values in the Dockerfile; override
         # here (or with `--build-arg`) when building outside China.
-        APP_REVISION: ${APP_REVISION:-unknown}
+        # No default-value interpolation: compose v1 rejects `${VAR:-x}` (and
+        # `${VAR-x}`) outright, so an unset APP_REVISION is simply blank.
+        APP_REVISION: ${APP_REVISION}
     restart: always
     container_name: gitgud
     env_file: .env
