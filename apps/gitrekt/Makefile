@@ -38,9 +38,12 @@ obj = $(src:.c=.o)
 
 all: priv/geef_nif.so
 
+# `-w` suppresses warnings but GCC 14 promotes a few diagnostics (notably
+# -Wincompatible-pointer-types) to errors by default; `-Wno-error` keeps them
+# non-fatal, matching the pre-GCC-14 build behaviour.
 priv/geef_nif.so: $(src)
 	@mkdir -p priv
-	$(CC) $(CFLAGS) -shared -w $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -shared -w -Wno-error $(LDFLAGS) -o $@ $^
 
 clean:
 	$(RM) -r $(obj) priv/geef_nif.so
