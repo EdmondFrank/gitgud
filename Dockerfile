@@ -12,7 +12,7 @@ ENV HEX_CDN="https://hexpm.upyun.com"
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 WORKDIR /build
 
-RUN apk add --no-cache build-base erlang-dev libgit2-dev git nodejs yarn && \
+RUN apk add --no-cache build-base erlang-dev libgit2-dev git nodejs npm && \
     mix local.hex --force && \
     mix local.rebar --force
 
@@ -42,7 +42,7 @@ RUN mix compile
 
 COPY apps/gitgud_web/assets/ apps/gitgud_web/assets
 
-RUN yarn --cwd apps/gitgud_web/assets install --pure-lockfile
+RUN npm ci --prefix apps/gitgud_web/assets --no-audit --no-fund
 
 RUN cd apps/gitgud_web && mix assets.deploy
 
