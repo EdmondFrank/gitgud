@@ -41,9 +41,10 @@ Key entry points:
   invocation because GCC 14 and clang 20+ promote several C diagnostics — notably
   `-Wincompatible-pointer-types` — from warnings to **errors**, which broke the build on
   modern toolchains. `asdf install` provides it locally; the production image installs
-  the same version from the official tarball (Alpine only packages zig ≤ 0.16, while the
-  Linux tarball is statically linked, so it runs on musl). `pkgconf` must be installed too —
-  `zig build` resolves `libgit2` through `libgit2.pc`.
+  the same version from either the official tarball or the `ziglang` PyPI wheel — both
+  sha256-pinned and both statically linked, so they run on musl (Alpine only packages
+  zig ≤ 0.16). `pkgconf` must be installed too — `zig build` resolves `libgit2` through
+  `libgit2.pc`; see §4 for choosing the faster source on a CN build host.
 - **Node.js** (for the asset pipeline; `asdf` provides it).
 - **Docker** with Compose (for the PostgreSQL database).
 - `libcluster` is used for distribution; a single node works for local dev.
@@ -83,10 +84,14 @@ Open <http://localhost:4000>. Clone over SSH with `ssh://git@localhost:9989/<use
 > builds and tags it. Do **not** use it for local development.
 >
 > That image builds entirely behind mirrors — apk (tuna), hex (upyun), npm (npmmirror)
-> and the Zig tarball — all declared as `ARG`s at the top of the `Dockerfile`, so
-> `--build-arg APK_MIRROR_HOST=… NPM_REGISTRY=… ZIG_MIRROR=…` switches to upstream
-> endpoints. `.dockerignore` keeps `_build/`, `deps/`, `node_modules/`, the Zig cache
-> and `.env` out of the build context.
+> and either the Zig tarball or the `ziglang` PyPI wheel — all declared as `ARG`s at the
+> top of the `Dockerfile`, so `--build-arg APK_MIRROR_HOST=… NPM_REGISTRY=… ZIG_MIRROR=…`
+> switches to upstream endpoints. On a CN build host prefer
+> `--build-arg ZIG_PIP_INDEX=https://mirrors.cloud.tencent.com/pypi/simple`: ziglang.org
+> is Cloudflare-throttled to ~40 KB/s there, whereas the mirror returns the 101 MB wheel
+> (same static `zig` + `lib/`) in seconds. A host-local proxy also works, with no
+> Dockerfile change, via the predefined `HTTPS_PROXY` build arg. `.dockerignore` keeps
+> `_build/`, `deps/`, `node_modules/`, the Zig cache and `.env` out of the build context.
 
 SSH host keys must exist in `apps/gitgud/priv/ssh-keys/` (generate with
 `ssh-keygen -m PEM -t rsa -f apps/gitgud/priv/ssh-keys/ssh_host_rsa_key`).
@@ -179,7 +184,9 @@ watcher automatically (`node build.js --watch`).
   additionally needs that target's `libgit2` and `zlib` headers/libraries — Zig does not
   bundle them. The container takes the same path (Zig in `/opt/zig`, symlinked to
   `/usr/local/bin/zig`); note that Alpine 3.21 there ships **libgit2 1.8.4**, whose
-  `git_odb_writepack` does expose the `free` callback `c_src/odb.c` relies on.
+  `git_odb_writepack` does expose the `free` callback `c_src/odb.c` relies on. Both
+  Zig sources install the identical `zig` + `lib/` layout under `/opt/zig` (the wheel is
+  simply unpacked there), so `zig build` behaves the same either way.
 - **MetaDB & ContentStore need `:data_dir`** — `GitGud.MetaDB.start_link/1` and
   `GitGud.ContentStore.start_link/1` `Keyword.fetch!` their `:data_dir`. Both dev and
   test configs set it (test writes under `apps/gitgud/test/data/`).
