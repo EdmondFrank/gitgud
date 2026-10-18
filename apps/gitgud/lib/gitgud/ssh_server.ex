@@ -272,7 +272,7 @@ defmodule GitGud.SSHServer do
         |> Path.split()
 
       if String.ends_with?(repo_name, ".git") do
-        {{user_login, String.slice(repo_name, 0..-5)}, args}
+        {{user_login, String.trim_trailing(repo_name, ".git")}, args}
       end
     end
   end

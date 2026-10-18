@@ -100,7 +100,7 @@ defmodule GitGud.Web.Markdown do
             match ->
               cond do
                 String.starts_with?(match, ":") && String.ends_with?(match, ":") ->
-                  Emoji.render(String.slice(match, 1..-2)) || match
+                  Emoji.render(String.slice(match, 1..-2//1)) || match
                 byte_size(match) in 7..40 && hexadecimal_str?(match) ->
                   if agent do
                     case GitAgent.revision(agent, match) do

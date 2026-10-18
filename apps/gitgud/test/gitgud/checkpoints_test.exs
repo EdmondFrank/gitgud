@@ -62,6 +62,49 @@ defmodule GitGud.CheckpointsTest do
       assert Map.has_key?(checkpoints, @checkpoint_id)
     end
 
+    # The CLI records no `commit_sha` in `metadata.json`; the link is the
+    # `Entire-Checkpoint:` trailer it writes into the user's own commit, which the
+    # fixture puts on `main`.
+    test "links the checkpoint to the commit carrying its trailer", %{
+      repo: repo,
+      main_oid: main_oid
+    } do
+      assert {:ok, [checkpoint]} = Checkpoints.list(repo)
+      assert checkpoint.commit_sha == hex(main_oid)
+
+      assert {:ok, %{commit_sha: commit_sha}} = Checkpoints.get(repo, @checkpoint_id)
+      assert commit_sha == hex(main_oid)
+    end
+
+    # The trailer index is cached per branch *tip*, so the push that delivers the
+    # trailer invalidates it, while a checkpoint push does not.
+    test "caches the trailer index by branch tip", %{repo: repo, main_oid: main_oid} do
+      assert {:ok, [_checkpoint]} = Checkpoints.list(repo)
+
+      assert %{oid: oid, links: links} = MetaDB.get_raw(links_key(repo, "main"))
+      assert oid == hex(main_oid)
+      assert links == %{String.downcase(@checkpoint_id) => hex(main_oid)}
+    end
+
+    test "leaves a checkpoint unlinked when its branch carries no trailer", %{repo: repo} do
+      # A checkpoint captured on `topic`, whose tip is not a trailer commit.
+      {:ok, moved_oid} =
+        create_commit(repo, %{
+          "metadata.json" =>
+            Jason.encode!(%{
+              "checkpoint_id" => @checkpoint_id,
+              "branch" => "topic",
+              "sessions" => []
+            })
+        })
+
+      {:ok, agent} = GitRepo.get_agent(repo)
+      :ok = GitAgent.reference_create(agent, "refs/heads/topic", :oid, moved_oid)
+      :ok = GitAgent.reference_create(agent, @checkpoint_ref, :oid, moved_oid, force: true)
+
+      assert {:ok, [%{commit_sha: nil}]} = Checkpoints.list(repo)
+    end
+
     test "rebuilds the index once invalidated", %{repo: repo} do
       assert {:ok, [checkpoint]} = Checkpoints.list(repo)
 
@@ -246,6 +289,7 @@ defmodule GitGud.CheckpointsTest do
       assert {:ok, [checkpoint]} = Checkpoints.for_commit(repo, hex(main_oid))
       assert checkpoint.id == @checkpoint_id
       assert checkpoint.metadata["cli_version"] == "0.11.5"
+      assert checkpoint.commit_sha == hex(main_oid)
     end
 
     test "returns nothing for a commit without a trailer", %{repo: repo, checkpoint_oid: oid} do
@@ -781,6 +825,9 @@ defmodule GitGud.CheckpointsTest do
   defp sha256(content), do: Base.encode16(:crypto.hash(:sha256, content), case: :lower)
 
   defp hex(oid), do: Base.encode16(oid, case: :lower)
+
+  defp links_key(%Repo{owner_login: owner_login, name: name}, branch),
+    do: {:checkpoints_links, owner_login, name, branch}
 
   defp index_key(%Repo{owner_login: owner_login, name: name}),
     do: {:checkpoints, owner_login, name}

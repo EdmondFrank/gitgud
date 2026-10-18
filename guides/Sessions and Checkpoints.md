@@ -550,6 +550,11 @@ entire enable --checkpoint-push-remote gitfrank
 entire enable --checkpoint-remote <name>:<owner>/<repo>
 ```
 
+`--checkpoint-remote` is **github/gitlab only** in 0.11.5 — it guards against a non-Entire host —
+so gitfrank can only ever be the *push* remote (`--checkpoint-push-remote`, or the sole remote
+after `entire enable`). That is all Level A needs: the checkpoint data travels as ordinary
+references over `git push`, and the CLI's pre-push hook is what uploads it.
+
 gitfrank then receives `refs/entire/checkpoints/<shard>/<id>` (create / fast-forward
 update / delete), advertises them on `info/refs`, and serves them on fetch. No login, no
 API, no tokens beyond the git remote's own credentials.
@@ -612,8 +617,9 @@ entire.io for CLI operations; the checkpoint-sync value does not depend on it.
   tokenisation, the hard-`AND` across terms, field/prompt labelling, scoring and ordering, the
   terms in the index document, provenance by file and by directory, and an empty path. The
   LiveView and GraphQL/MCP search states are covered by the two bullets above. `MIX_ENV=test mix
-  test` is green across both apps: `:gitgud` **220 tests, 0 failures, 12 skipped**; `:gitgud_web`
-  **197 tests, 0 failures, 4 skipped**.
+  test` is green across both apps: `:gitgud` **225 tests, 0 failures, 12 skipped**; `:gitgud_web`
+  **209 tests, 0 failures, 4 skipped**. (The Phase 6 transcript tests and the two §13 tests the
+  live run added are counted here; §13 lists them.)
 - **Phase 5 hardening tests** — `checkpoints_test.exs` gained `describe "retention"` (4 tests:
   a deleted ref leaves `list/2` and the rebuilt index document, `get/2`/`session/4` report
   `:not_found`, a delete push clears the cache, and an unreadable checkpoint is skipped),
@@ -647,6 +653,8 @@ entire.io for CLI operations; the checkpoint-sync value does not depend on it.
 | 3 | GraphQL + MCP tools ✅ | Agents can query *why* |
 | 4 | Search + provenance ✅ | Agents stop re-deriving work |
 | 5 | Retention tolerance, storage report, push guard, short ids ✅ | Hardening (control plane still deferred) |
+| 6 | Transcript viewer: message cards, tool calls, `?tools=0` ✅ | The capture is *readable* |
+| — | Post-validation fixes: delete-only push, checkpoint→commit link, deprecations ✅ (§13) | Delete and link work on a real capture |
 
 Phases 0–4 are done, and the git side was validated against a real `entire`-enabled repository
 (§11). Phase 4 (search & provenance) built on them, replacing the bounded, prompt-only scan in
@@ -694,6 +702,11 @@ entire enable --agent opencode --yes --telemetry=false
 | `.entire/.gitignore` | `tmp/`, `settings.local.json`, `metadata/`, `logs/`, `redactors/local/` |
 | `.git/hooks/{prepare-commit-msg,commit-msg,post-commit,post-rewrite,pre-push}` | thin `entire hooks git <hook>` shims; `pre-push` forwards `$1` (the remote name) |
 | agent plugin | e.g. `.opencode/plugins/entire.ts`, or 10 hook entries in `.claude/settings.json` |
+
+> **Prerequisite — a Git identity.** "Purely local" is only true once the repository has one:
+> with none configured, `entire enable` stops with *"Git identity is missing, and Entire
+> authentication is required"*. A repository-local identity
+> (`git config user.name … && git config user.email …`) is enough — still no login and no API call.
 
 `entire status` then reports `Checkpoints sync to: origin` — the election picked the sole
 remote, so the `pre-push` hook will upload checkpoint refs there.
@@ -766,6 +779,17 @@ surface directly:
 5. Because checkpoint refs live in the object store, a **public** repo exposes prompts and
    transcripts to anyone who clones (risk 1 in §7). Nothing was changed here; it is Entire's
    own model.
+6. **A delete-only push leaves the client hanging.** `entire checkpoint delete <id> --remote
+   origin` printed `Local ref: deleted / origin: ref failed / git push: signal: killed` and the
+   ref stayed on the server; plain `git push origin :branch` hung for *any* user. The cause and
+   the fix are in §13.1.
+7. **The CLI records no `commit_sha`.** `metadata.json` has none, so the only link between a
+   checkpoint and the commit it came from is the `Entire-Checkpoint:` trailer in that commit —
+   which is why the detail page used to say *"not linked to a commit"*. Resolved server-side in
+   §13.2.
+8. **On the legacy branch backend the checkpoints are a *branch*,** `entire/checkpoints/v1`,
+   sharded `<shard>/<rest>/`. It is pushed, advertised and fetched like any other branch, and
+   `entire status` reports a checkpoint as *"1 checkpoint not yet on origin"* until it has been.
 
 ## 12. Fixed: SSH `git clone` / `git fetch` failed with `remote transport reported error`
 
@@ -874,3 +898,106 @@ SSH is how the `entire` pre-push hook uploads checkpoint refs, and it is the clo
 recommends — so a repo hosting checkpoints could be **pushed to but not cloned** over SSH. That
 is why §11's validation was run with an HTTP clone plus an SSH push URL; with this fix, plain
 SSH clone and push both work end-to-end.
+---
+
+## 13. Post-validation fixes (found by the §11 live run)
+
+Two defects only a real `entire` 0.11.5 session exposes, plus a deprecation. Fixed; `MIX_ENV=test
+mix test` is green across both apps — `:gitgud` **225 tests, 0 failures, 12 skipped**;
+`:gitgud_web` **209 tests, 0 failures, 4 skipped**.
+
+### 13.1 A delete-only push hung — every `git push --delete`
+
+`git send-pack` sets `need_pack_data = 0` when *every* command in the push is a deletion (a
+deletion needs no objects) and closes the stream right after the command list, so a delete-only
+push carries **no packfile at all**. `GitRekt.WireProtocol.ReceivePack` moved to `:pack` after
+parsing the commands and waited there for pack data that never comes: `:done` was never reached,
+`unpack`/`report-status` were never sent, and the two sides deadlocked. The server log shows it
+exactly — the step after the command list never runs:
+
+```
+[debug] (gitrekt) receive_pack start  update_req
+[debug] (gitrekt) executed update_req in 236 µs     # then nothing: no :pack, no :done
+```
+
+Impact was not checkpoint-specific: `entire checkpoint delete <id> --remote origin` reported
+`Local ref: deleted / origin: ref failed / git push: signal: killed` and left the reference on the
+server, and plain `git push origin :branch` hung for every user. Git's own `receive-pack` has a
+`delete_only()` short-circuit for this; gitfrank's did not.
+
+**Fix.** `ReceivePack.next/2` now goes straight to `:done` when the parsed commands are all
+deletions *and* nothing is left to read, mirroring git; a client that sends a pack anyway still has
+it consumed (`progress.received_bytes == 0` already made `push_pack/3` a no-op for a delete). This
+covers both transports, since `GitGud.SSHServer` and `GitGud.SmartHTTPBackend` both drive
+`GitRekt.WireProtocol`.
+
+**Verified live** over SSH (`git push ssh://… :refs/heads/verify-delete-fix`): `- [deleted]
+verify-delete-fix` in ~0.1 s, where it previously never returned.
+
+```
+== F2 (fixed node :9997): delete-only push
+   $ git push ssh://kanle@localhost:9997/kanle/appswitcher.git :refs/heads/verify-delete-fix
+   -> exit=0 in 0.1s
+      - [deleted]         verify-delete-fix
+```
+
+Covered by `describe "a delete-only push"` in
+`apps/gitgud/test/gitgud/checkpoints_transport_test.exs` (2 tests): one drives the service from
+`:update_req` with a deletion command and a flush — no pack — and asserts a single
+`WireProtocol.next/2` call reaches `:done`, emits `unpack ok` / `ok <ref>` and deletes the ref; the
+other does the same from a fresh service through the advertisement.
+
+### 13.2 No checkpoint→commit link — `metadata.json` has no `commit_sha`
+
+CLI 0.11.5 writes no `commit_sha` into `metadata.json`, and the checkpoint commit is a *root*
+commit, so no parent link exists either. The only link is the `Entire-Checkpoint: <id>` trailer
+the CLI writes into the user's **own** commit. `GitGud.Checkpoints` read
+`metadata["commit_sha"]`, so every real checkpoint fell back to *"This checkpoint is not linked to
+a commit."* — no *Changes* diff, and `commitSha: null` over GraphQL and MCP. The web tests did not
+catch it because `CheckpointFactory` *invented* a `commit_sha` in the metadata it wrote.
+
+**Fix.** `GitGud.Checkpoints` resolves the link from the trailer:
+
+* it groups the checkpoints by the `branch` each records (falling back to `repo.default_branch`),
+  walks that branch newest-first (`sort: :sort_time`) bounded by `@max_link_commits` (100) and
+  reads the `Entire-Checkpoint:` trailers off the commit messages, building `id => commit sha`;
+* the result is cached in `GitGud.MetaDB` under `{:checkpoints_links, owner_login, name, branch}`
+  **keyed by the branch tip oid** — so the push that delivers the trailer invalidates it, while a
+  push of a checkpoint reference alone does not throw it away;
+* metadata still wins when it does carry a `commit_sha` (a future CLI needs no change here), and
+  the whole thing is best-effort: a deleted branch, an unreadable commit or a repository that
+  never received the trailer just leaves the checkpoint unlinked;
+* a new `checkpoint_ids/1`-style link is case-insensitive, like `resolve_location/2` — a ULID is
+  uppercase base32, a legacy id is lowercase hex, and the trailer carries whichever the CLI holds.
+
+`list/2`, `get/2` and `for_commit/2` all carry the resolved sha, so the Sessions tab, the
+commit-history code (which indexes checkpoints by the commit sha the CLI put in the trailer), the
+GraphQL `commitSha` and the MCP `commit_sha` all agree. `CheckpointLive` now takes its diff sha
+from the summary's `commit_sha` rather than `metadata["commit_sha"]`, and `CheckpointFactory` no
+longer writes one — so the LiveView/GraphQL/MCP tests exercise the resolution instead of asserting
+the fixture's invention.
+
+**Verified against the real repository** (`kanle/appswitcher`, captured by CLI 0.11.5):
+
+```
+[verify] F1 links for kanle/appswitcher:
+  id=01M57WC2AEC6GYMY1WPHX6SMTT source=ref branch="main" commit_sha="925f417e795588832c5baaf75bf6076a57d9dbff"
+```
+
+`925f417` is the commit whose message carries `Entire-Checkpoint: 01M57WC2AEC6GYMY1WPHX6SMTT` (the
+same `HEAD` the §11 run pushed); before the fix the same call returned `nil`. The debug log shows
+the walk is two commits deep: `history(<GitCommit:925f417>, [sort: :sort_time])` →
+`commit_message` ×2.
+
+Covered by `checkpoints_test.exs`: three new `list/2` tests (the link from `list/2` **and**
+`get/2`; the trailer index cached under the branch tip with the id case-folded; a checkpoint whose
+branch carries no trailer left unlinked) and one more assertion on `for_commit/2`.
+
+### 13.3 Elixir 1.18 negative-step deprecations
+
+`GitGud.SSHServer.parse_args/1` dropped the `.git` suffix with `String.slice(repo_name, 0..-5)`,
+which Elixir 1.18 warns about on every command parsed (*"negative steps are not supported in
+`String.slice/2`"*); it now uses `String.trim_trailing/2`. The same deprecated form in
+`GitGud.ContentStore.transform_key/1` (`4..-1`) and `GitGud.Web.Markdown`
+(`1..-2`, the emoji shortcode) is now written as the explicit step the warning asks for
+(`4..-1//1`, `1..-2//1`), which behaves identically.

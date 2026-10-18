@@ -180,10 +180,10 @@
               class: "button is-small"
             ) %>
           </p>
-        <% @checkpoint.metadata["commit_sha"] -> %>
+        <% @checkpoint.commit_sha -> %>
           <p class="has-text-grey">
             The linked commit
-            <span class="is-family-monospace"><%= @checkpoint.metadata["commit_sha"] %></span>
+            <span class="is-family-monospace"><%= @checkpoint.commit_sha %></span>
             could not be read.
           </p>
         <% true -> %>
@@ -247,12 +247,12 @@
               <strong>Recorded</strong>
               <br /><%= datetime_format(@checkpoint.committed_at, "{relative}") %>
             </p>
-            <%= if @checkpoint.metadata["commit_sha"] do %>
+            <%= if @checkpoint.commit_sha do %>
               <p>
                 <strong>Commit</strong>
                 <br />
-                <%= live_redirect(short_oid(@checkpoint.metadata["commit_sha"]),
-                  to: commit_path(@repo, @checkpoint.metadata["commit_sha"]),
+                <%= live_redirect(short_oid(@checkpoint.commit_sha),
+                  to: commit_path(@repo, @checkpoint.commit_sha),
                   class: "is-family-monospace"
                 ) %>
               </p>

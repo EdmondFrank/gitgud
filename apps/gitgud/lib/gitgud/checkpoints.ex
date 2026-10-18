@@ -28,6 +28,14 @@ defmodule GitGud.Checkpoints do
   A checkpoint id can be given in full or as an unambiguous prefix — the "short id"
   the UI shows — and `storage/1` reports what the checkpoints weigh.
 
+  The CLI does not record which commit a checkpoint came from: 0.11.5 writes no
+  `commit_sha` in `metadata.json`. The link is therefore recovered from the
+  `Entire-Checkpoint:` trailer the CLI writes into the user's *own* commit, by
+  walking the branch the checkpoint was captured on (bounded, and cached per
+  branch tip). `list/2` and `get/2` fill their summaries' `commit_sha` from it;
+  `commit_ids/2` and `for_commit/2` read the trailer the other way round, from a
+  commit to its checkpoints.
+
   See `guides/Sessions and Checkpoints.md`.
   """
 
@@ -62,6 +70,13 @@ defmodule GitGud.Checkpoints do
   # hit the reported byte count becomes a documented lower bound.
   @max_storage_checkpoints 500
   @max_storage_objects 200_000
+
+  # Cap for the trailer scan behind a checkpoint's `commit_sha`. The commit that
+  # carries the trailer has to be found by walking the branch the checkpoint was
+  # captured on; only its newest commits can plausibly hold it (a checkpoint is
+  # created by the run that just committed), and the answer is cached per branch
+  # tip, so this bounds a rare rebuild rather than every read.
+  @max_link_commits 100
 
   # Search is deliberately dependency-free: prompts are indexed locally (no
   # embeddings, no external service), with hard caps so that neither the index
@@ -230,11 +245,16 @@ defmodule GitGud.Checkpoints do
   @doc """
   Returns the checkpoint with the given `id`.
 
-  The summary is enriched with the raw `metadata.json` under `:metadata`.
+  The summary is enriched with the raw `metadata.json` under `:metadata` and, when
+  one can be resolved, with the commit the checkpoint is linked to (`:commit_sha`).
   """
   @spec get(Repo.t(), id) :: {:ok, checkpoint} | {:error, term}
   def get(%Repo{} = repo, id) when is_binary(id) do
-    with_agent(repo, &read_checkpoint(&1, id))
+    with_agent(repo, fn agent ->
+      with {:ok, checkpoint} <- read_checkpoint(agent, id) do
+        {:ok, linked_checkpoint(repo, agent, checkpoint)}
+      end
+    end)
   end
 
   @doc """
@@ -453,7 +473,7 @@ defmodule GitGud.Checkpoints do
           end
         end)
         |> case do
-          {:ok, checkpoints} -> {:ok, Enum.reverse(checkpoints)}
+          {:ok, checkpoints} -> {:ok, linked_checkpoints(repo, agent, Enum.reverse(checkpoints))}
           {:error, _reason} = error -> error
         end
       end
@@ -480,10 +500,16 @@ defmodule GitGud.Checkpoints do
           do: read_cache(repo, watermark),
           else: :miss
 
-      case cached do
-        {:ok, document} -> {:ok, document}
-        :miss -> build(repo, agent, watermark, locations)
-      end
+      document =
+        case cached do
+          {:ok, document} -> document
+          :miss -> build(repo, agent, watermark, locations)
+        end
+
+      # The links are applied on every read, not baked into the cached document:
+      # they are indexed per branch tip, so they can be resolved without touching
+      # the (more expensive) checkpoint summaries.
+      {:ok, linked(repo, agent, document)}
     end
   end
 
@@ -517,7 +543,7 @@ defmodule GitGud.Checkpoints do
 
     document = %{watermark: watermark, checkpoints: checkpoints, terms: terms}
     :ok = MetaDB.put(index_key(repo), document)
-    {:ok, document}
+    document
   end
 
   # Keyed by owner/name rather than by `repo.id`: `GitGud.MetaDB` is process-wide
@@ -525,6 +551,138 @@ defmodule GitGud.Checkpoints do
   # is the *volume* id and therefore shared by every repository.
   defp index_key(%Repo{owner_login: owner_login, name: name}),
     do: {:checkpoints, owner_login, name}
+
+  #
+  # Linking
+  #
+
+  # The document with every summary's `commit_sha` filled in from the trailer
+  # index; the metadata always wins, so a CLI that starts recording the sha itself
+  # needs no change here. A repository with no trailer at all keeps the document as
+  # it is, so the common case costs one branch lookup and no rebuild.
+  defp linked(repo, agent, document) do
+    case commit_links(repo, agent, Map.values(document.checkpoints)) do
+      links when map_size(links) == 0 ->
+        document
+
+      links ->
+        %{
+          document
+          | checkpoints:
+              Map.new(document.checkpoints, fn {id, summary} ->
+                {id, with_link(summary, links)}
+              end)
+        }
+    end
+  end
+
+  defp linked_checkpoint(repo, agent, checkpoint) do
+    with_link(checkpoint, commit_links(repo, agent, [checkpoint]))
+  end
+
+  defp linked_checkpoints(repo, agent, checkpoints) do
+    links = commit_links(repo, agent, checkpoints)
+    Enum.map(checkpoints, &with_link(&1, links))
+  end
+
+  defp with_link(%{commit_sha: nil} = summary, links),
+    do: %{summary | commit_sha: Map.get(links, link_key(summary.id))}
+
+  defp with_link(summary, _links), do: summary
+
+  # The `id => commit sha` index of the trailer-carrying commits, gathered by
+  # walking one branch per distinct `branch` the checkpoints record (falling back to
+  # the repository default). Best effort: a branch that is gone, or a repository
+  # that never received the trailer, simply yields no link.
+  defp commit_links(repo, agent, checkpoints) do
+    branches =
+      checkpoints
+      |> Enum.map(&(&1.branch || repo.default_branch))
+      |> Enum.uniq()
+
+    case GitAgent.references(agent) do
+      {:ok, refs} ->
+        tips = branch_tips(refs)
+
+        Enum.reduce(branches, %{}, fn branch, links ->
+          case Map.get(tips, branch) do
+            nil -> links
+            oid -> Map.merge(links, branch_links(repo, agent, branch, oid))
+          end
+        end)
+
+      {:error, _reason} ->
+        %{}
+    end
+  end
+
+  defp branch_tips(refs) do
+    for %{prefix: "refs/heads/", name: name, oid: oid} <- refs,
+        into: %{},
+        do: {name, Git.oid_fmt(oid)}
+  end
+
+  # Cached per branch *tip*: the push that delivers the trailer moves the branch, so
+  # the entry invalidates itself exactly when the answer can have changed — while a
+  # push of a checkpoint reference alone does not throw it away for nothing.
+  defp branch_links(repo, agent, branch, oid) do
+    case MetaDB.get_raw(links_key(repo, branch)) do
+      %{oid: ^oid, links: links} -> links
+      _other -> build_links(repo, agent, branch, oid)
+    end
+  end
+
+  defp build_links(repo, agent, branch, oid) do
+    links = walk_links(agent, oid)
+    :ok = MetaDB.put(links_key(repo, branch), %{oid: oid, links: links})
+    links
+  end
+
+  defp links_key(%Repo{owner_login: owner_login, name: name}, branch),
+    do: {:checkpoints_links, owner_login, name, branch}
+
+  defp walk_links(agent, oid) do
+    with {:ok, object} <- resolve_object(agent, oid),
+         {:ok, commit} <- GitAgent.peel(agent, object, target: :commit) do
+      walk_trailers(agent, commit)
+    else
+      _other -> %{}
+    end
+  end
+
+  # Newest first (`:sort_time`), so that an id several commits happen to carry keeps
+  # the most recent one, and capped by `#{@max_link_commits}` commits. Enrichment
+  # only: a commit that cannot be read is skipped instead of failing the listing.
+  defp walk_trailers(agent, commit) do
+    with {:ok, history} <- GitAgent.history(agent, commit, sort: :sort_time) do
+      try do
+        history
+        |> Stream.map(&commit_links_of(agent, &1))
+        |> Enum.take(@max_link_commits)
+        |> Enum.reduce(%{}, fn links, acc -> Map.merge(links, acc) end)
+      rescue
+        _error -> %{}
+      end
+    else
+      _other -> %{}
+    end
+  end
+
+  defp commit_links_of(agent, commit) do
+    case GitAgent.commit_message(agent, commit) do
+      {:ok, message} ->
+        oid = Git.oid_fmt(commit.oid)
+        for id <- checkpoint_ids(message), into: %{}, do: {link_key(id), oid}
+
+      {:error, _reason} ->
+        %{}
+    end
+  end
+
+  # Trailer ids are compared case-insensitively, like `resolve_location/2`: an id is
+  # uppercase Crockford base32 (or lowercase hex, when it is a legacy one) and the
+  # trailer carries whichever form the CLI holds.
+  defp link_key(id), do: String.downcase(id)
 
   #
   # Reading

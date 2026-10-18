@@ -1,6 +1,10 @@
 defmodule GitRekt.WireProtocol.ReceivePack do
   @moduledoc """
   Module implementing the `git-receive-pack` command.
+
+  The service walks `:disco` → `:update_req` → `:pack` → `:done`; the `:pack` step
+  is skipped for a push that only deletes references, which carries no packfile
+  at all (see `next/2`).
   """
 
   @behaviour GitRekt.WireProtocol
@@ -89,8 +93,25 @@ defmodule GitRekt.WireProtocol.ReceivePack do
           {caps, cmds} = parse_caps(cmds)
           [:flush | lines] = lines
 
-          {%{handle | state: :pack, caps: caps, cmds: parse_cmds(cmds), writepack: writepack},
-           lines, []}
+          handle = %{
+            handle
+            | caps: caps,
+              cmds: parse_cmds(cmds),
+              writepack: writepack
+          }
+
+          # A push that only deletes references carries no packfile at all: `git
+          # send-pack` sets `need_pack_data = 0` (a deletion needs no objects) and
+          # closes the stream right after the command list. Waiting in `:pack` for
+          # a pack that never arrives is what used to hang every `git push
+          # --delete` -- and `entire checkpoint delete`. There is nothing left to
+          # read, so go straight to `:done` and report the status; a pack is still
+          # consumed when a client sends one anyway.
+          if delete_only?(handle.cmds) and Enum.empty?(lines) do
+            {%{handle | state: :done}, lines, []}
+          else
+            {%{handle | state: :pack}, lines, []}
+          end
         else
           raise "shallow update not allowed"
         end
@@ -221,6 +242,12 @@ defmodule GitRekt.WireProtocol.ReceivePack do
 
   defp push_cmd(agent, {:delete, _old_oid, name}),
     do: :ok = GitAgent.reference_delete(agent, name)
+
+  # Git's own `delete_only()`. An empty command list is *not* one: a client with
+  # nothing to send is handled by the `[:flush | lines]` clause above, so an empty
+  # list reaching here would be a truncated request.
+  defp delete_only?([]), do: false
+  defp delete_only?(cmds), do: Enum.all?(cmds, &match?({:delete, _old_oid, _name}, &1))
 
   # Splits the incoming commands into the ones to apply and the ones to report back
   # as rejected. Only writes are offered to the policy: a deletion never adds data,

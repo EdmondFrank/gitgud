@@ -63,7 +63,7 @@ defmodule GitGud.Web.CheckpointFactory do
     checkpoint_oid =
       commit!(
         agent,
-        checkpoint_files(hex(main_oid), Keyword.get(opts, :files_touched, @files_touched)),
+        checkpoint_files(Keyword.get(opts, :files_touched, @files_touched)),
         "Checkpoint #{@checkpoint_id}\n",
         []
       )
@@ -79,8 +79,8 @@ defmodule GitGud.Web.CheckpointFactory do
   The sessions recorded in the root `metadata.json` are the pointer entries the
   CLI writes; `0/` holds the session itself.
   """
-  @spec checkpoint_files(binary, [binary]) :: %{binary => binary}
-  def checkpoint_files(commit_sha, files_touched \\ @files_touched) do
+  @spec checkpoint_files([binary]) :: %{binary => binary}
+  def checkpoint_files(files_touched \\ @files_touched) do
     %{
       "metadata.json" =>
         Jason.encode!(%{
@@ -89,7 +89,9 @@ defmodule GitGud.Web.CheckpointFactory do
           "strategy" => "manual-commit",
           "branch" => "main",
           "checkpoints_count" => 1,
-          "commit_sha" => commit_sha,
+          # The CLI 0.11.5 records no `commit_sha`: the only link to the user's commit
+          # is the `Entire-Checkpoint:` trailer `write!/2` puts in it, so a
+          # checkpoint's `commit_sha` has to be resolved from that trailer.
           "files_touched" => files_touched,
           "sessions" => [
             %{

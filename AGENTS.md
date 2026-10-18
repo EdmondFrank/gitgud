@@ -375,6 +375,27 @@ the way the CLI does and exposes `full_transcript/0` / `compact_transcript/0` / 
 `apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs` — `:gitgud` 220 tests, `:gitgud_web`
 209, both green.
 
+A live `entire` 0.11.5 run against a real capture then found two defects (guide §13), both fixed.
+**A delete-only push hung.** `git send-pack` sends *no* packfile when every command in a push is a
+deletion (`need_pack_data = 0`) and `ReceivePack` waited in `:pack` for one, so `:done` and
+`report-status` never happened: `entire checkpoint delete` and plain `git push origin :branch` hung
+for *every* user. `ReceivePack.next/2` now short-circuits to `:done` when the parsed commands are
+all deletions *and* nothing is left to read — git's own `delete_only()` — and a client that sends a
+pack anyway still has it consumed. Covered by `describe "a delete-only push"` in
+`checkpoints_transport_test.exs`, and verified live (`- [deleted] <branch>` in ~0.1 s).
+**And `commit_sha` was always `nil` for a real checkpoint**: CLI 0.11.5 writes no `commit_sha` into
+`metadata.json` and the checkpoint commit is a *root* commit, so the only link is the
+`Entire-Checkpoint:` trailer in the user's own commit. `GitGud.Checkpoints` now resolves it by
+walking the branch each checkpoint records (`branch`, else `repo.default_branch`) newest-first and
+bounded (`@max_link_commits`), caching `id => sha` in `GitGud.MetaDB` under
+`{:checkpoints_links, owner_login, name, branch}` — keyed by the *branch tip oid*, so the push that
+delivers the trailer invalidates it while a push of a checkpoint reference does not. `list/2`,
+`get/2` and `for_commit/2` carry it, `CheckpointLive` diffs against the summary's `commit_sha`, and
+`CheckpointFactory` no longer invents one, so the web tests exercise the resolution. Finally,
+`String.slice(repo_name, 0..-5)` in `SSHServer.parse_args/1` became `String.trim_trailing/2` (and
+two sibling negative-end ranges the explicit `//1` form), clearing the Elixir 1.18 negative-step
+deprecation. `:gitgud` 225 tests, `:gitgud_web` 209, both green.
+
 The [Entire CLI](https://github.com/entireio/cli) captures AI coding-agent
 sessions as **checkpoints** and pushes them to a git remote as ordinary refs —
 `refs/entire/checkpoints/<shard>/<id>`, each pointing at a commit whose tree root

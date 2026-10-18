@@ -245,8 +245,11 @@ defmodule GitGud.Web.CheckpointLive do
     assign(socket, :tasks, tasks)
   end
 
+  # The diff is taken against the commit the checkpoint is linked to — resolved by
+  # `GitGud.Checkpoints` from the `Entire-Checkpoint:` trailer the CLI writes into
+  # the user's commit, since `metadata.json` records no sha of its own.
   defp assign_diff(socket, checkpoint) do
-    with sha when is_binary(sha) <- checkpoint.metadata["commit_sha"],
+    with sha when is_binary(sha) <- checkpoint.commit_sha,
          {:ok, agent} <- GitRepo.get_agent(socket.assigns.repo),
          {:ok, diff} <- GitAgent.transaction(agent, &read_diff(&1, sha)) do
       assign(socket, :diff, diff)

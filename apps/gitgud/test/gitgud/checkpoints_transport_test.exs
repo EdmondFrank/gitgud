@@ -29,6 +29,9 @@ defmodule GitGud.CheckpointsTransportTest do
   # the 26-character ULID checkpoint id.
   @checkpoint_ref "refs/entire/checkpoints/6D/01K9TQ8ZP7X3F5M2WVJ4CNRB6D"
 
+  # The all-zero object id git sends as the *new* oid of a deletion command.
+  @null_oid String.duplicate("0", 40)
+
   setup :create_user
   setup :create_repo
   setup :create_checkpoint_ref
@@ -180,9 +183,75 @@ defmodule GitGud.CheckpointsTransportTest do
     end
   end
 
+  describe "a delete-only push" do
+    # A push that only removes references carries **no packfile**: `git send-pack`
+    # sets `need_pack_data = 0` (a deletion needs no objects) and closes the stream
+    # right after the command list. The service used to wait in `:pack` for a pack
+    # that never arrived, so `git push --delete` — and `entire checkpoint delete` —
+    # hung, leaving the reference in place. It must reach `:done` and answer with
+    # the status report in the very same call.
+    test "reaches :done and reports the status without a packfile", %{
+      agent: agent,
+      repo: repo,
+      commit_oid: oid
+    } do
+      service = %{receive_pack(agent, repo) | state: :update_req}
+      request = update_request([delete_cmd(oid, @checkpoint_ref)])
+
+      assert {:halt, service, output} = WireProtocol.next(service, request)
+      assert service.state == :done
+
+      output = IO.iodata_to_binary(output)
+      assert output =~ "unpack ok"
+      assert output =~ "ok #{@checkpoint_ref}"
+      assert {:error, _reason} = GitAgent.reference(agent, @checkpoint_ref)
+    end
+
+    # The same request through the whole state machine, as the SSH server and the
+    # Smart HTTP backend drive it.
+    test "reports the status from a fresh service", %{agent: agent, repo: repo, commit_oid: oid} do
+      service =
+        WireProtocol.new(agent, "git-receive-pack",
+          repo: repo,
+          reference_policy: Checkpoints.reference_policy()
+        )
+
+      {service, _advertisement} = WireProtocol.next(service, :discovery)
+
+      {:halt, service, output} =
+        WireProtocol.next(service, update_request([delete_cmd(oid, @checkpoint_ref)]))
+
+      assert service.state == :done
+      assert IO.iodata_to_binary(output) =~ "ok #{@checkpoint_ref}"
+    end
+  end
+
   #
   # Helpers
   #
+
+  # A `git-receive-pack` handle configured the way both transports configure it.
+  defp receive_pack(agent, repo) do
+    WireProtocol.new(agent, "git-receive-pack",
+      repo: repo,
+      caps: ["report-status"],
+      reference_policy: Checkpoints.reference_policy()
+    )
+  end
+
+  # A `delete` command line, as `git send-pack` writes it. The old oid goes on the
+  # wire as lowercase hex.
+  defp delete_cmd(old_oid, name),
+    do: "#{Base.encode16(old_oid, case: :lower)} #{@null_oid} #{name}"
+
+  # A `git-receive-pack` request body: the command lines — the first one carrying
+  # the capabilities — then a flush packet, and *nothing else* for a delete-only
+  # push, which is the whole point.
+  defp update_request([first | rest]) do
+    ([first <> "\0report-status" | rest] ++ [:flush])
+    |> WireProtocol.encode()
+    |> IO.iodata_to_binary()
+  end
 
   defp discovery(agent, hidden \\ []) do
     WireProtocol.reference_discovery(agent, "git-upload-pack", [], hide_references: hidden)
@@ -212,14 +281,9 @@ defmodule GitGud.CheckpointsTransportTest do
   # Drives `GitRekt.WireProtocol.ReceivePack` straight to its `:done` state with a
   # fabricated command list, so the policy is exercised without a real pack.
   defp push(agent, repo, cmds) do
-    handle =
-      WireProtocol.new(agent, "git-receive-pack",
-        repo: repo,
-        caps: ["report-status"],
-        reference_policy: Checkpoints.reference_policy()
-      )
+    handle = %{receive_pack(agent, repo) | state: :done, cmds: cmds}
 
-    {_handle, _lines, output} = ReceivePack.next(%{handle | state: :done, cmds: cmds}, [])
+    {_handle, _lines, output} = ReceivePack.next(handle, [])
     List.flatten(output)
   end
 

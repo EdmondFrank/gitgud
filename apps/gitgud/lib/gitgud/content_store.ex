@@ -32,7 +32,7 @@ defmodule GitGud.ContentStore do
     if String.length(key) < 5 do
       key
     else
-      Path.join([String.slice(key, 0..1), String.slice(key, 2..3), String.slice(key, 4..-1)])
+      Path.join([String.slice(key, 0..1), String.slice(key, 2..3), String.slice(key, 4..-1//1)])
     end
   end
 
