@@ -1,6 +1,6 @@
 # Sessions & Checkpoints — Design & Implementation Plan
 
-Status: **Phases 0–5 implemented** — research complete; reference classification fixed
+Status: **Phases 0–6 implemented** — research complete; reference classification fixed
 and covered by tests; the whole `entire` → gitfrank checkpoint-sync loop has been run against
 a live dev server (§11), which also turned up — and fixed — a pre-existing SSH transport bug
 (§12); the domain ingest layer — `GitGud.Checkpoints` plus the `GitGud.MetaDB` index — is
@@ -16,7 +16,9 @@ connection and a `checkpoint_provenance` connection on GraphQL `repo`, and the
 `checkpoint_provenance` MCP tool (§6, Phase 4); and Phase 5 hardened the feature — deletions
 heal the index on their own, an admin-only storage report sits on the Sessions tab, a push-side
 guard keeps the `refs/entire/*` namespace well-formed, and every read accepts an unambiguous
-short id — leaving only the optional control plane (§8 level B) undone.
+short id; and Phase 6 made the checkpoint detail actually readable — the transcript is now read
+from the CLI's normalised file and rendered as messages, tool calls and all (§6, Phase 6) —
+leaving only the optional control plane (§8 level B) undone.
 Owner: gitfrank maintainers
 External reference: the [Entire CLI](https://github.com/entireio/cli) (`entire.io`) and its
 docs under `docs/architecture/` (`sessions-and-checkpoints.md`, `ref-checkpoint-backend.md`,
@@ -291,9 +293,10 @@ because `CodebaseView.title/2`'s first clause already guards on `action == :show
   count, token usage. Offset pagination (`?p=`, 20/page) over the in-memory list, which is
   cheap because the index is MetaDB-cached.
 - **Detail** (`:session`): prompt (`markdown_safe/1`), a session selector (`?session=`) when the
-  checkpoint has more than one, the **transcript as a 100-line window** (`?page=`) over the lines
-  `Checkpoints.session/4` already capped, with the line count and `truncated?` flag shown —
-  a whole `full.jsonl` is never materialised, in the LiveView or the index; files touched; the
+  checkpoint has more than one, the transcript as a **100-line window** (`?page=`) over the lines
+  `Checkpoints.session/4` returns, rendered as messages by `GitGud.Web.CheckpointTranscript`
+  (Phase 6) with the message count and `truncated?` flag shown — a whole transcript is never
+  materialised, in the LiveView or the index; files touched; the
   subagent task table; and a **compact diff** against the linked commit (`metadata["commit_sha"]`),
   resolving the commit and its first parent in one `GitAgent.transaction` and rendering changed
   files with `+`/`-` counts plus a link to the full commit page. `CommitDiffLive`'s hunk renderer
@@ -315,7 +318,8 @@ Implementation notes:
 
 - The list shows no agent/model: those live in each session's `<i>/metadata.json`, not the root
   `metadata.json` (confirmed against the real §11 capture), so surfacing them per row would mean N
-  extra blob reads. The detail view has them available.
+  extra blob reads. The detail view has them available, and Phase 6 shows them in the transcript
+  toolbar.
 - Visibility is the repository's, via the same `RepoQuery.user_repo_query` gate the codebase uses
   — see risk 1 in §7.
 
@@ -465,6 +469,61 @@ when checkpoints are disabled, **no** retention pruner, changes left uncommitted
 The optional **control plane** (§8 level B: `entire login --server`, `org`/`project`/`repo`,
 `activity`/`search`/`trail`, `entire://` clones) remains **deferred**; the checkpoint-sync value
 does not depend on it.
+
+### Phase 6 — Transcript rendering ✅ done
+
+The Phase 2 viewer rendered a transcript line as `type` + text — a shape only the test *fixture*
+ever had. Against a real capture the transcript was unreadable, for two reasons, both found in the
+§11 data (`kanle/hello`, checkpoint `01M571…`):
+
+1. **The wrong blob was being read.** `session/4` preferred the agent-native `full.jsonl`, which for
+   OpenCode is a *pretty-printed JSON document* (242 lines of JSON syntax), not JSON Lines — so
+   splitting it by newline produced 242 meaningless fragments (`"info": {`, `"id": …`). The CLI's
+   compacted `transcript.jsonl` *is* JSON Lines, and is **agent-normalised**.
+2. **The renderer assumed the wrong shape.** It read `entry["type"]`/`entry["text"]`, whereas the
+   real lines carry a `content:` **array of parts** — and a compact *user* part has no `type` at all:
+
+   ```json
+   {"v":1,"agent":"opencode","type":"user","ts":"…","content":[{"id":"prt-…","text":"…"}]}
+   {"v":1,"type":"assistant","ts":"…","input_tokens":49,"output_tokens":36,
+    "content":[{"type":"tool_use","name":"write","input":{…},
+                "result":{"output":"…","status":"success"}}]}
+   ```
+
+   `display_text/1` therefore handed a *list* to `Jason.encode!/1` and dumped raw JSON into the
+   element.
+
+**Domain.** `Checkpoints.session/4` gained a `:source` option — `:full` (the default; the
+agent-native file) or `:compact` (the CLI's normalised one) — each falling back to the other when
+the preferred file is absent, with the file actually read returned as `:source`. The default is
+unchanged, so the GraphQL/MCP callers and the Phase 1 tests are untouched; only the LiveView asks
+for `:compact`. (`read_first_blob/3` now carries `{path, source}` pairs and returns what it read.)
+
+**Renderer.** `GitGud.Web.CheckpointTranscript` (`apps/gitgud_web/lib/gitgud_web/checkpoint_transcript.ex`)
+turns a raw line into `%{role:, at:, text:, tools:, thinking:, tokens:, raw:}`: a parsed `DateTime`
+for `at`, markdown-ready `text`, and per tool call `%{name:, input:, output:, status:, error?:}`
+(a nested map/list input or output is pretty-printed). It recognises the compact envelope, the
+Claude Code line (parts under `message.content`), the OpenCode-native line (`info.role` + `parts`
+with `state`), and passes anything else — including a pretty-printed fragment — through as `:raw`
+rather than guessing. It is pure, and unit-tested with the real shapes in
+`apps/gitgud_web/test/gitgud_web/checkpoint_transcript_test.exs`.
+
+**UI.** The detail view parses the page's lines once in `assign_session` and renders message cards:
+a colour-coded role tag, timestamp and token counts, markdown text (`markdown_safe/1`), and
+`thinking` / tool calls inside `<details>` (name, a one-line input hint, the pretty-printed input,
+the output, `is-danger` on an error result). A toolbar carries the session's `agent`/`model` tags
+(from `<i>/metadata.json`), which transcript was read (*compacted* vs *raw*), and a **`?tools=0`
+toggle** that drops the tool calls server-side and reports how many it hid. The styles are a new
+`assets/css/components/checkpoint/_all.scss`, pulled in by `components/_all.scss` like `popover` —
+previously there were none at all, which is why the view was a monospace run-on.
+
+**Fixture & tests.** `CheckpointFactory` now writes both transcripts the way the CLI does — the
+agent-native `0/full.jsonl` (one JSON object per line) and the normalised `0/transcript.jsonl` (150
+messages: a prompt whose part carries no `type`, a `tool_use` call, a text reply, then filler) — and
+exposes `full_transcript/0`, `compact_transcript/0`, `prompt/0`, `reply/0`, `tool/0` and
+`transcript_lines/0`. `checkpoint_live_test.exs` asserts the rendered messages and the tool toggle,
+and its transcript pagination now starts at message 4. Suites: `:gitgud` 220 tests, `:gitgud_web`
+209, both green.
 
 ## 7. Risks and open questions
 

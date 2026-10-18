@@ -262,8 +262,8 @@ so AI agents can drive it. Design + phased plan: `guides/MCP.md`; client setup
 
 ## 12. AI coding-agent sessions (Entire checkpoints)
 
-Design + phased plan: `guides/Sessions and Checkpoints.md`. **Phases 0, 1, 2, 3 and 4 are
-done**; the retention/guard phase is not started.
+Design + phased plan: `guides/Sessions and Checkpoints.md`. **Phases 0–6 are done**; no
+retention pruner was built and the optional control plane stays deferred.
 
 Phase 1 is the domain ingest layer, `GitGud.Checkpoints`
 (`apps/gitgud/lib/gitgud/checkpoints.ex`): `list/2`, `get/2`, `session/4`, `tasks/2`,
@@ -354,8 +354,26 @@ error). No retention pruner was built (the user declined one) and the control pl
 stays deferred. Tests: the `retention` / `short id resolution` / `storage/1` blocks in
 `apps/gitgud/test/gitgud/checkpoints_test.exs`, `reference_policy/0` + `the push guard` in
 `checkpoints_transport_test.exs`, `valid_reference_name?/1` in `git_reference_test.exs`, and the
-storage-panel tests in `apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs` — `:gitgud`
-220 tests, `:gitgud_web` 197, both green.
+storage-panel tests in `apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs`.
+
+Phase 6 is the transcript viewer. It fixed two things a real capture exposed: `session/4`
+preferred the agent-native `0/full.jsonl`, which for OpenCode is a *pretty-printed JSON document*
+rather than JSON Lines, and the view assumed each line was `{"type":…,"text":…}` when the CLI's
+normalised `0/transcript.jsonl` lines actually carry `content:` as a **list of parts** (a compact
+*user* part has no `type` at all). So `session/4` gained a `:source` option (`:full`, the default,
+or `:compact`, each falling back to the other, with the file read returned as `:source`) and the
+detail view asks for `:compact`. `GitGud.Web.CheckpointTranscript`
+(`apps/gitgud_web/lib/gitgud_web/checkpoint_transcript.ex`) normalises a line into
+`%{role:, at:, text:, tools:, thinking:, tokens:, raw:}` — recognising the compact envelope, the
+Claude Code `message.content` line and the OpenCode-native `info`/`parts` line, and passing
+anything else through as `:raw` — and `checkpoint_live.html.heex` renders message cards (role tag,
+timestamps, token counts, markdown text, tool calls in `<details>`, a `?tools=0` toggle) styled by
+a new `assets/css/components/checkpoint/_all.scss`. `CheckpointFactory` now writes both transcripts
+the way the CLI does and exposes `full_transcript/0` / `compact_transcript/0` / `prompt/0` /
+`reply/0` / `tool/0` / `transcript_lines/0`. Tests: the new
+`apps/gitgud_web/test/gitgud_web/checkpoint_transcript_test.exs` and the message/toggle cases in
+`apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs` — `:gitgud` 220 tests, `:gitgud_web`
+209, both green.
 
 The [Entire CLI](https://github.com/entireio/cli) captures AI coding-agent
 sessions as **checkpoints** and pushes them to a git remote as ordinary refs —

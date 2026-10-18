@@ -64,6 +64,32 @@ defmodule GitGud.Web.CheckpointLiveTest do
       assert html =~ "task-1"
       assert html =~ "Add a greeting"
       assert html =~ "158 in / 54 out"
+      assert html =~ "compacted transcript"
+    end
+
+    test "renders the transcript as messages with their tool calls", %{
+      conn: conn,
+      user: user,
+      repo: repo
+    } do
+      {:ok, _view, html} = live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}")
+
+      assert html =~ "transcript-message--user"
+      assert html =~ "transcript-message--assistant"
+      assert html =~ "transcript-tool"
+      assert html =~ CheckpointFactory.tool()
+      assert html =~ "Wrote file successfully."
+      assert html =~ "49 in / 18 out"
+    end
+
+    test "collapses the tool calls on request", %{conn: conn, user: user, repo: repo} do
+      {:ok, _view, html} =
+        live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}?tools=0")
+
+      assert html =~ "1 tool call hidden"
+      assert html =~ "Show tool calls"
+      refute html =~ "Wrote file successfully."
+      assert html =~ "Add a greeting to the README"
     end
 
     test "renders the diff against the linked commit", %{conn: conn, user: user, repo: repo} do
@@ -77,7 +103,7 @@ defmodule GitGud.Web.CheckpointLiveTest do
       {:ok, _view, html} = live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}")
 
       assert html =~ "Showing 100 of 150 lines"
-      assert html =~ "line 3"
+      assert html =~ "line 4"
       assert html =~ "page=2"
       refute html =~ "line 101"
 

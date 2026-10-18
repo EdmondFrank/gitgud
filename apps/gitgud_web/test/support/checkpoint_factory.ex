@@ -5,6 +5,13 @@ defmodule GitGud.Web.CheckpointFactory do
   `Entire-Checkpoint:` trailer), the checkpoint tree root, and the
   `refs/entire/checkpoints/<shard>/<id>` reference pointing at it.
 
+  Both transcripts are shaped the way the CLI 0.11.5 writes them:
+
+    * `0/full.jsonl` — the agent-native record, one JSON object per line;
+    * `0/transcript.jsonl` — the compacted, agent-normalised form, one message
+      per line with `content` a list of parts.
+
+  Each carries #{150} messages, so the checkpoint viewer paginates (100 per page).
   Everything is built in memory with `GitRekt.GitAgent` — no network, no
   checked-in binaries. Shared by the Phase 2 LiveView tests and the Phase 3
   GraphQL/MCP tests; see `guides/Sessions and Checkpoints.md`.
@@ -19,13 +26,18 @@ defmodule GitGud.Web.CheckpointFactory do
 
   @files_touched ["README.md", "SECOND.md"]
 
-  @first_line ~s({"type":"user","text":"Add a greeting to the README"})
-  @second_line ~s({"type":"assistant","text":"Done — added it."})
+  @prompt "Add a greeting to the README"
+  @reply "Done — added it."
+  @tool "write"
+  @timestamp "2026-01-02T03:04:05.000Z"
+  @transcript_lines 150
 
   def checkpoint_id, do: @checkpoint_id
   def checkpoint_ref, do: @checkpoint_ref
-  def first_line, do: @first_line
-  def second_line, do: @second_line
+  def prompt, do: @prompt
+  def reply, do: @reply
+  def tool, do: @tool
+  def transcript_lines, do: @transcript_lines
 
   @doc """
   Writes the fixture into `repo`.
@@ -89,29 +101,115 @@ defmodule GitGud.Web.CheckpointFactory do
           ],
           "token_usage" => %{"input_tokens" => 158, "output_tokens" => 54}
         }),
-      "0/metadata.json" => Jason.encode!(%{"session_id" => "sess-1", "agent" => "opencode"}),
-      "0/prompt.txt" => "Add a greeting to the README\n",
-      "0/full.jsonl" => transcript(),
-      "0/transcript.jsonl" => @first_line <> "\n",
+      "0/metadata.json" =>
+        Jason.encode!(%{
+          "session_id" => "sess-1",
+          "agent" => "opencode",
+          "model" => "kimi-k2.5"
+        }),
+      "0/prompt.txt" => @prompt <> "\n",
+      "0/full.jsonl" => full_transcript(),
+      "0/transcript.jsonl" => compact_transcript(),
       "tasks/task-1/task.json" =>
         Jason.encode!(%{"description" => "Add a greeting", "status" => "completed"})
     }
   end
 
-  @doc "A 150-line transcript, so the checkpoint detail viewer paginates (100 lines per page)."
-  @spec transcript :: binary
-  def transcript do
-    lines = [
-      @first_line,
-      @second_line
-      | Enum.map(3..150, fn index -> ~s({"type":"tool","text":"line #{index}"}) end)
-    ]
+  @doc """
+  The agent-native `0/full.jsonl` — one JSON object per line, one per message.
+  """
+  @spec full_transcript :: binary
+  def full_transcript do
+    transcript(@transcript_lines, &full_line/1)
+  end
 
-    Enum.join(lines, "\n") <> "\n"
+  @doc """
+  The compacted `0/transcript.jsonl` — the CLI's normalised, agent-agnostic form.
+
+  The first three messages are a prompt, a tool call and a reply; the rest are a
+  filler `text` part, so a page of it is distinguishable from the next.
+  """
+  @spec compact_transcript :: binary
+  def compact_transcript do
+    transcript(@transcript_lines, &compact_line/1)
   end
 
   @doc "The raw object id of a commit, as a lowercase hex string."
   def hex(oid), do: Base.encode16(oid, case: :lower)
+
+  #
+  # Transcript lines
+  #
+
+  defp full_line(1) do
+    native("user", [%{"type" => "text", "text" => @prompt}])
+  end
+
+  defp full_line(2) do
+    native("assistant", [
+      %{
+        "type" => "tool",
+        "tool" => @tool,
+        "state" => %{
+          "status" => "completed",
+          "input" => %{"filePath" => "README.md", "content" => "hello world\n"},
+          "output" => "Wrote file successfully."
+        }
+      }
+    ])
+  end
+
+  defp full_line(index) do
+    native("assistant", [%{"type" => "text", "text" => "line #{index}"}])
+  end
+
+  defp native(role, parts) do
+    Jason.encode!(%{
+      "info" => %{"role" => role, "time" => %{"created" => 1_767_326_645_000}},
+      "parts" => parts
+    })
+  end
+
+  defp compact_line(1) do
+    compact("user", 0, [%{"id" => "prt-1", "text" => @prompt}])
+  end
+
+  defp compact_line(2) do
+    compact("assistant", 49, [
+      %{
+        "id" => "functions.write:0",
+        "name" => @tool,
+        "type" => "tool_use",
+        "input" => %{"filePath" => "README.md", "content" => "hello world\n"},
+        "result" => %{"output" => "Wrote file successfully.", "status" => "success"}
+      }
+    ])
+  end
+
+  defp compact_line(3) do
+    compact("assistant", 109, [%{"type" => "text", "text" => @reply}])
+  end
+
+  defp compact_line(index) do
+    compact("assistant", 0, [%{"type" => "text", "text" => "line #{index}"}])
+  end
+
+  defp compact(type, input_tokens, content) do
+    Jason.encode!(%{
+      "v" => 1,
+      "agent" => "opencode",
+      "cli_version" => "0.11.5",
+      "type" => type,
+      "ts" => @timestamp,
+      "input_tokens" => input_tokens,
+      "output_tokens" => 18,
+      "content" => content
+    })
+  end
+
+  defp transcript(count, line) do
+    Enum.map_join(1..count, "\n", line) <> "\n"
+  end
 
   #
   # Helpers

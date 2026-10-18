@@ -28,31 +28,103 @@
         <div class="buttons">
           <%= for index <- 0..(@checkpoint.session_count - 1) do %>
             <%= live_patch("Session #{index}",
-              to: session_path(@repo, @checkpoint.id) <> "?session=#{index}",
+              to: session_view_path(@repo, @checkpoint.id, index, @show_tools),
               class: "button is-small#{if index == @session_index, do: " is-primary", else: ""}"
             ) %>
           <% end %>
         </div>
       <% end %>
       <%= if @session && not Enum.empty?(@session.transcript) do %>
+        <div class="transcript-toolbar">
+          <div class="transcript-toolbar-meta">
+            <%= if agent = session_meta(@session, "agent") do %>
+              <span class="tag is-small is-light"><%= agent %></span>
+            <% end %>
+            <%= if model = session_meta(@session, "model") do %>
+              <span class="tag is-small is-light is-family-monospace"><%= model %></span>
+            <% end %>
+            <span class="transcript-source has-text-grey">
+              <%= if @session.source == :compact,
+                do: "compacted transcript",
+                else: "raw agent transcript" %>
+            </span>
+          </div>
+          <div class="transcript-toolbar-actions">
+            <%= if @hidden_tools > 0 do %>
+              <span class="has-text-grey">
+                <%= @hidden_tools %> tool call<%= if @hidden_tools != 1, do: "s" %> hidden
+              </span>
+            <% end %>
+            <% tools_label = if @show_tools, do: "Hide tool calls", else: "Show tool calls" %>
+            <%= live_patch(tools_label,
+              to: tools_toggle_path(@session_index, @transcript_page.current, @show_tools),
+              class: "button is-small is-white"
+            ) %>
+          </div>
+        </div>
+
         <div class="transcript">
-          <%= for line <- @transcript_page.slice do %>
-            <% {kind, text} = transcript_cell(line) %>
-            <div class="transcript-line">
-              <span class="tag is-small is-light"><%= kind %></span>
-              <span class="is-family-monospace"><%= text %></span>
-            </div>
+          <%= for message <- @messages do %>
+            <article class={"transcript-message transcript-message--#{message.role}"}>
+              <header class="transcript-message-header">
+                <span class="tag is-small transcript-role">
+                  <%= CheckpointTranscript.label(message) %>
+                </span>
+                <%= if message.at do %>
+                  <span class="transcript-time">
+                    <%= datetime_format(message.at, "{relative}") %>
+                  </span>
+                <% end %>
+                <%= if message.tokens do %>
+                  <span class="transcript-tokens">
+                    <%= message.tokens.input || 0 %> in / <%= message.tokens.output || 0 %> out
+                  </span>
+                <% end %>
+              </header>
+              <%= if message.raw do %>
+                <pre class="transcript-raw"><%= message.raw %></pre>
+              <% end %>
+              <%= for text <- message.text do %>
+                <div class="transcript-text"><%= markdown_safe(text) %></div>
+              <% end %>
+              <%= for thought <- message.thinking do %>
+                <details class="transcript-thinking">
+                  <summary>Thinking</summary>
+                  <div class="transcript-text"><%= markdown_safe(thought) %></div>
+                </details>
+              <% end %>
+              <%= for tool <- message.tools do %>
+                <details class={"transcript-tool#{if tool.error?, do: " is-danger", else: ""}"}>
+                  <summary>
+                    <span class="transcript-tool-name"><%= tool.name || "tool" %></span>
+                    <%= if tool_hint(tool.input) do %>
+                      <span class="transcript-tool-hint"><%= tool_hint(tool.input) %></span>
+                    <% end %>
+                    <%= if tool.status do %>
+                      <span class="transcript-tool-status"><%= tool.status %></span>
+                    <% end %>
+                  </summary>
+                  <%= if tool.input do %>
+                    <pre class="transcript-code"><%= tool.input %></pre>
+                  <% end %>
+                  <%= if tool.output do %>
+                    <pre class="transcript-code transcript-tool-output"><%= tool.output %></pre>
+                  <% end %>
+                </details>
+              <% end %>
+            </article>
           <% end %>
         </div>
+
         <%= if @transcript_page.count > 1 do %>
           <nav class="pagination is-right" role="navigation">
             <%= live_patch("Previous",
-              to: "?session=#{@session_index}&page=#{@transcript_page.current - 1}",
+              to: transcript_page_path(@session_index, @transcript_page.current - 1, @show_tools),
               class: "pagination-previous",
               disabled: !@transcript_page.previous?
             ) %>
             <%= live_patch("Next",
-              to: "?session=#{@session_index}&page=#{@transcript_page.current + 1}",
+              to: transcript_page_path(@session_index, @transcript_page.current + 1, @show_tools),
               class: "pagination-next",
               disabled: !@transcript_page.next?
             ) %>

@@ -22,6 +22,7 @@ defmodule GitGud.Web.CheckpointLive do
   alias GitGud.DBQueryable
   alias GitGud.IssueQuery
   alias GitGud.RepoQuery
+  alias GitGud.Web.CheckpointTranscript
 
   @checkpoint_page_size 20
   @transcript_page_size 100
@@ -46,6 +47,9 @@ defmodule GitGud.Web.CheckpointLive do
         session_index: 0,
         session: nil,
         transcript_page: nil,
+        messages: [],
+        show_tools: true,
+        hidden_tools: 0,
         tasks: [],
         diff: nil
       )
@@ -190,12 +194,17 @@ defmodule GitGud.Web.CheckpointLive do
     end
   end
 
+  # The *compacted* `transcript.jsonl` is preferred for display: it is one
+  # normalised message per line and agent-agnostic, where the agent-native
+  # `full.jsonl` is not always JSON Lines at all (OpenCode writes a pretty-printed
+  # document) and needs `GitGud.Web.CheckpointTranscript` to make sense of it.
   defp assign_session(socket, checkpoint, params) do
     index = session_index(params, checkpoint)
     page = max(int_param(params, "page", 1), 1)
+    show_tools? = params["tools"] != "0"
 
     session =
-      case Checkpoints.session(socket.assigns.repo, checkpoint.id, index) do
+      case Checkpoints.session(socket.assigns.repo, checkpoint.id, index, source: :compact) do
         {:ok, session} ->
           session
 
@@ -210,7 +219,20 @@ defmodule GitGud.Web.CheckpointLive do
     transcript_page =
       if session, do: paginate(session.transcript, page, @transcript_page_size), else: nil
 
-    assign(socket, session_index: index, session: session, transcript_page: transcript_page)
+    messages =
+      if transcript_page, do: CheckpointTranscript.messages(transcript_page.slice), else: []
+
+    hidden_tools = if show_tools?, do: 0, else: Enum.sum(Enum.map(messages, &length(&1.tools)))
+    messages = if show_tools?, do: messages, else: Enum.map(messages, &%{&1 | tools: []})
+
+    assign(socket,
+      session_index: index,
+      session: session,
+      transcript_page: transcript_page,
+      messages: messages,
+      show_tools: show_tools?,
+      hidden_tools: hidden_tools
+    )
   end
 
   defp assign_tasks(socket, id) do
@@ -287,6 +309,48 @@ defmodule GitGud.Web.CheckpointLive do
 
   defp session_path(repo, id), do: ~p"/#{repo.owner_login}/#{repo.name}/sessions/#{id}"
 
+  # A link to another session of the same checkpoint, keeping the tool-call
+  # toggle. `?session=0` is always carried so the two views are addressable.
+  defp session_view_path(repo, id, index, show_tools?) do
+    session_path(repo, id) <>
+      "?" <> transcript_query(session: index, tools: tools_param(show_tools?))
+  end
+
+  # A link to another transcript page, keeping the session and the tool-call
+  # toggle.
+  defp transcript_page_path(index, page, show_tools?) do
+    "?" <> transcript_query(session: index, page: page, tools: tools_param(show_tools?))
+  end
+
+  # Flips the tool-call toggle without leaving the current page.
+  defp tools_toggle_path(index, page, show_tools?) do
+    "?" <> transcript_query(session: index, page: page, tools: tools_param(!show_tools?))
+  end
+
+  defp tools_param(true), do: nil
+  defp tools_param(false), do: "0"
+
+  defp transcript_query(params) do
+    params
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> URI.encode_query()
+  end
+
+  # A one-line preview of a tool call's input, shown on the collapsed row.
+  defp tool_hint(nil), do: nil
+
+  defp tool_hint(input) when is_binary(input) do
+    case input |> String.split("\n", trim: true) |> List.first() do
+      nil -> nil
+      line -> String.slice(line, 0, 96)
+    end
+  end
+
+  # A field of the session's own `metadata.json` (`agent`, `model`, …), which is
+  # absent for a session that recorded none.
+  defp session_meta(%{metadata: metadata}, key) when is_map(metadata), do: metadata[key]
+  defp session_meta(_session, _key), do: nil
+
   defp commit_path(repo, sha), do: ~p"/#{repo.owner_login}/#{repo.name}/commit/#{sha}"
 
   defp blob_path(repo, revision, path),
@@ -328,20 +392,4 @@ defmodule GitGud.Web.CheckpointLive do
       end)
     end)
   end
-
-  # A transcript line is a raw JSON Line; decode it for display when possible.
-  defp transcript_cell(line) do
-    case Jason.decode(line) do
-      {:ok, entry} when is_map(entry) ->
-        type = entry["type"] || entry["role"] || "entry"
-        text = entry["text"] || entry["content"] || entry["message"] || line
-        {to_string(type), display_text(text)}
-
-      _other ->
-        {"raw", line}
-    end
-  end
-
-  defp display_text(text) when is_binary(text), do: text
-  defp display_text(text), do: Jason.encode!(text)
 end

@@ -241,11 +241,16 @@ defmodule GitGud.Checkpoints do
   Returns the session at `index` (0-based) of the checkpoint `id`.
 
   Carries the session `metadata.json`, the user `prompt.txt` and the agent
-  transcript as a list of raw JSON Lines. `full.jsonl` is preferred, falling
-  back to the compacted `transcript.jsonl`.
+  transcript as a list of raw JSON Lines.
 
   Options:
 
+    * `:source` — which transcript to prefer. `:full` (the default) reads the
+      agent-native `full.jsonl`; `:compact` reads the CLI's normalised
+      `transcript.jsonl`, one message per line. Either falls back to the other
+      when the preferred file is absent, and the file actually read is returned
+      under `:source` — the compacted transcript is what a UI wants to render,
+      while `full.jsonl` is the faithful record.
     * `:max_bytes` — cap on the transcript size (default
       `config :gitgud, GitGud.Checkpoints, max_transcript_bytes: …`). The last,
       possibly partial, line is dropped when the transcript is truncated, so
@@ -257,6 +262,8 @@ defmodule GitGud.Checkpoints do
       Keyword.get(opts, :max_bytes) ||
         config(:max_transcript_bytes, @default_max_transcript_bytes)
 
+    source = Keyword.get(opts, :source, :full)
+
     with_agent(repo, fn agent ->
       with {:ok, loc} <- resolve_location(agent, id),
            {:ok, commit} <- checkpoint_commit(agent, loc) do
@@ -264,8 +271,8 @@ defmodule GitGud.Checkpoints do
 
         with {:ok, metadata} <- read_json_optional(agent, commit, base <> "/metadata.json"),
              {:ok, prompt} <- read_blob(agent, commit, base <> "/prompt.txt"),
-             {:ok, transcript, bytes, truncated?} <-
-               read_transcript(agent, commit, base, max_bytes) do
+             {:ok, transcript, bytes, truncated?, source} <-
+               read_transcript(agent, commit, base, max_bytes, source) do
           {:ok,
            %{
              id: loc.id,
@@ -275,7 +282,8 @@ defmodule GitGud.Checkpoints do
              prompt: prompt,
              transcript: transcript,
              transcript_bytes: bytes,
-             truncated: truncated?
+             truncated: truncated?,
+             source: source
            }}
         end
       end
@@ -969,22 +977,32 @@ defmodule GitGud.Checkpoints do
     end
   end
 
-  defp read_first_blob(agent, commit, []), do: {:error, :not_found}
+  defp read_first_blob(_agent, _commit, []), do: {:error, :not_found}
 
-  defp read_first_blob(agent, commit, [path | paths]) do
+  defp read_first_blob(agent, commit, [{path, source} | paths]) do
     case read_blob(agent, commit, path) do
-      {:ok, content} -> {:ok, content}
+      {:ok, content} -> {:ok, content, source}
       {:error, _reason} -> read_first_blob(agent, commit, paths)
     end
   end
 
-  defp read_transcript(agent, commit, base, max_bytes) do
-    with {:ok, content} <-
-           read_first_blob(agent, commit, [base <> "/full.jsonl", base <> "/transcript.jsonl"]) do
+  defp read_transcript(agent, commit, base, max_bytes, source) do
+    with {:ok, content, source} <-
+           read_first_blob(agent, commit, transcript_candidates(base, source)) do
       {lines, truncated?} = take_lines(content, max_bytes)
-      {:ok, lines, byte_size(content), truncated?}
+      {:ok, lines, byte_size(content), truncated?, source}
     end
   end
+
+  # The agent-native `full.jsonl` is the faithful record but is not necessarily
+  # JSON Lines (OpenCode writes a pretty-printed JSON document); the CLI's
+  # normalised `transcript.jsonl` is one message per line and is what a UI
+  # renders. Prefer the requested one, fall back to the other.
+  defp transcript_candidates(base, :compact),
+    do: [{base <> "/transcript.jsonl", :compact}, {base <> "/full.jsonl", :full}]
+
+  defp transcript_candidates(base, _source),
+    do: [{base <> "/full.jsonl", :full}, {base <> "/transcript.jsonl", :compact}]
 
   defp take_lines(content, max_bytes) when byte_size(content) <= max_bytes,
     do: {split_lines(content), false}

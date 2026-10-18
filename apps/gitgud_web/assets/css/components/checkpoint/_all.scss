@@ -1,0 +1,181 @@
+// The AI coding-agent transcripts the Entire CLI records as checkpoints.
+// See `guides/Sessions and Checkpoints.md`.
+
+.transcript-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+
+  .transcript-toolbar-meta,
+  .transcript-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .transcript-source {
+    font-size: $size-7;
+  }
+}
+
+.transcript {
+  margin-bottom: 1rem;
+}
+
+.transcript-message {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid $grey-lighter;
+  border-radius: $radius-small;
+  background-color: $white-ter;
+
+  &--user {
+    border-left-color: $info;
+  }
+
+  &--assistant {
+    border-left-color: $primary;
+  }
+
+  &--system {
+    border-left-color: $grey-light;
+  }
+}
+
+.transcript-message-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+
+  .transcript-role {
+    border-color: transparent;
+    background-color: $white;
+    color: $grey-dark;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .transcript-time {
+    font-size: $size-7;
+    color: $grey;
+  }
+
+  .transcript-tokens {
+    margin-left: auto;
+    font-family: $family-monospace;
+    font-size: $size-7;
+    color: $grey;
+  }
+}
+
+.transcript-message--user .transcript-role {
+  background-color: $info;
+  color: $white;
+}
+
+.transcript-message--assistant .transcript-role {
+  background-color: $primary;
+  color: $white;
+}
+
+.transcript-text {
+  font-size: $size-6;
+  overflow-wrap: break-word;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  pre {
+    background-color: $white;
+    font-size: $size-7;
+  }
+
+  code {
+    font-family: $family-code;
+  }
+}
+
+.transcript-tool {
+  margin-top: 0.5rem;
+  border: 1px solid $border;
+  border-radius: $radius-small;
+  background-color: $white;
+
+  &.is-danger {
+    border-color: $danger;
+  }
+
+  > summary {
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    font-size: $size-7;
+    line-height: 1.7;
+  }
+
+  .transcript-tool-name {
+    margin-right: 0.5rem;
+    font-family: $family-monospace;
+    font-weight: $weight-semibold;
+  }
+
+  .transcript-tool-hint {
+    display: inline-block;
+    max-width: 60%;
+    vertical-align: bottom;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: $family-monospace;
+    color: $grey;
+  }
+
+  .transcript-tool-status {
+    margin-left: 0.5rem;
+    color: $grey;
+  }
+}
+
+.transcript-code {
+  max-height: 24rem;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  overflow: auto;
+  border-top: 1px solid $border;
+  background-color: $white-ter;
+  font-size: $size-7;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.transcript-tool-output {
+  color: $grey-dark;
+}
+
+.transcript-thinking {
+  margin-top: 0.5rem;
+
+  > summary {
+    cursor: pointer;
+    font-size: $size-7;
+    color: $grey;
+  }
+}
+
+.transcript-raw {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: $radius-small;
+  background-color: $white;
+  font-size: $size-7;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}

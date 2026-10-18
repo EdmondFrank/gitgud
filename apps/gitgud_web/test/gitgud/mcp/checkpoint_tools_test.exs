@@ -101,8 +101,9 @@ defmodule GitGud.MCP.CheckpointToolsTest do
       assert session["prompt"] == "Add a greeting to the README\n"
       assert session["metadata"]["agent"] == "opencode"
       assert session["truncated"] == false
-      assert session["transcript_bytes"] == byte_size(CheckpointFactory.transcript())
-      assert length(session["transcript"]) == 150
+      assert session["transcript_bytes"] == byte_size(CheckpointFactory.full_transcript())
+
+      assert length(session["transcript"]) == CheckpointFactory.transcript_lines()
     end
 
     test "reports an unknown checkpoint as not_found", %{user: user} do
