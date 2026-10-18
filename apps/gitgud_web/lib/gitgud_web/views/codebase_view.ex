@@ -137,6 +137,9 @@ defmodule GitGud.Web.CodebaseView do
   def title(:history, %{repo: repo, revision: rev, tree_path: []}), do: "Commits at #{revision_name(rev)} · #{repo.owner_login}/#{repo.name}"
   def title(:history, %{repo: repo, head: head, revision: head, tree_path: path}), do: "History for #{Path.join(path)} · #{repo.owner_login}/#{repo.name}"
   def title(:history, %{repo: repo, revision: rev, tree_path: path}), do: "History for #{Path.join(path)} · #{repo.owner_login}/#{repo.name}@#{revision_name(rev)}"
+  def title(:sessions, %{repo: repo}), do: "Sessions · #{repo.owner_login}/#{repo.name}"
+  def title(:session, %{repo: repo, checkpoint: %{id: id}}), do: "Session #{String.slice(id, 0, 7)} · #{repo.owner_login}/#{repo.name}"
+  def title(:session, %{repo: repo}), do: "Session · #{repo.owner_login}/#{repo.name}"
 
   #
   # Helpers

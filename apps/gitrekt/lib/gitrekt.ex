@@ -20,7 +20,7 @@ defmodule GitRekt do
     Represents a Git reference.
     """
     defstruct [:oid, :name, :prefix, :type]
-    @type t :: %__MODULE__{oid: Git.oid, name: binary, prefix: binary, type: :branch | :tag}
+    @type t :: %__MODULE__{oid: Git.oid, name: binary, prefix: binary, type: :branch | :tag | :other}
 
     defimpl Inspect do
       def inspect(ref, _opts), do: "<GitRef:#{ref.prefix}#{ref.name}>"

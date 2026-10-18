@@ -62,6 +62,14 @@
                     <% end %>
                   </div>
                 <% end %>
+                <%= for checkpoint <- commit_checkpoints(commit, @checkpoints_by_commit) do %>
+                  <div class="is-pulled-right">
+                    <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/sessions/#{checkpoint.id}", class: "button is-small is-white", title: "AI agent session" do %>
+                      <span class="icon"><i class="fa fa-robot"></i></span>
+                      <span class="is-family-monospace"><%= String.slice(checkpoint.id, 0, 7) %></span>
+                    <% end %>
+                  </div>
+                <% end %>
                 <p class="has-text-weight-bold">
                   <%= live_redirect commit_message_title(commit_info.message), to: ~p"/#{@repo.owner_login}/#{@repo.name}/commit/#{commit}" %>
                 </p>

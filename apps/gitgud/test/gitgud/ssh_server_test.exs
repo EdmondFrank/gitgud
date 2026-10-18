@@ -102,9 +102,48 @@ defmodule GitGud.SSHServerTest do
     end
   end
 
+  describe "when the repository has content" do
+    setup [:create_ssh_key, :create_repo, :create_workdir]
+
+    @tag timeout: 30_000
+    test "clones and fetches over SSH", %{user: user, id_rsa: id_rsa, repo: repo, workdir: workdir} do
+      url = "ssh://#{user.login}@localhost:9899/#{user.login}/#{repo.name}.git"
+      env = [{"GIT_SSH_COMMAND", git_ssh(id_rsa)}]
+      readme = "# #{repo.name}\n"
+
+      assert {_output, 0} = System.cmd("git", ["init", "--quiet", "-b", "main"], cd: workdir)
+      assert {_output, 0} = System.cmd("git", ["config", "user.name", "testbot"], cd: workdir)
+      assert {_output, 0} = System.cmd("git", ["config", "user.email", "no-reply@git.limo"], cd: workdir)
+      File.write!(Path.join(workdir, "README.md"), readme)
+      assert {_output, 0} = System.cmd("git", ["add", "README.md"], cd: workdir)
+      assert {_output, 0} = System.cmd("git", ["commit", "--quiet", "-m", "Initial commit"], cd: workdir)
+      assert {_output, 0} = System.cmd("git", ["remote", "add", "origin", url], cd: workdir)
+      assert {_output, 0} = System.cmd("git", ["push", "--quiet", "--set-upstream", "origin", "main"], env: env, cd: workdir)
+
+      # `git clone` and `git fetch` used to fail with "fatal: remote transport
+      # reported error": upload-pack ends the session from the server side, and
+      # `GitGud.SSHServer` only reported the exit status on the *client's* EOF,
+      # so OpenSSH handed git 255 for a successful transfer.
+      clone_dir = Path.join(System.tmp_dir!(), "#{repo.name}-clone")
+      on_exit(fn -> File.rm_rf(clone_dir) end)
+
+      assert {output, 0} = System.cmd("git", ["clone", "--quiet", url, clone_dir], env: env, stderr_to_stdout: true)
+      refute output =~ "remote transport reported error"
+      assert File.read!(Path.join(clone_dir, "README.md")) == readme
+
+      assert {output, 0} = System.cmd("git", ["fetch", "--quiet", "origin"], env: env, cd: workdir, stderr_to_stdout: true)
+      refute output =~ "remote transport reported error"
+    end
+  end
+
   #
   # Helpers
   #
+
+  defp git_ssh(id_rsa) do
+    "ssh -i #{id_rsa} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null " <>
+      "-o LogLevel=ERROR -o PreferredAuthentications=publickey -o PasswordAuthentication=no"
+  end
 
   defp create_user(context) do
     user = User.create!(factory(:user))

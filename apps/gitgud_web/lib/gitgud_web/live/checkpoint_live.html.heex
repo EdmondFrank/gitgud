@@ -1,0 +1,336 @@
+<%= if @live_action == :session do %>
+  <div class="columns">
+    <div class="column is-two-thirds">
+      <nav class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <%= live_redirect("← Sessions", to: sessions_path(@repo), class: "button is-white") %>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            <span class="tag is-medium is-family-monospace"><%= @checkpoint.id %></span>
+          </div>
+        </div>
+      </nav>
+
+      <h2 class="subtitle">Prompt</h2>
+      <%= if @session && @session.prompt do %>
+        <article class="message is-light">
+          <div class="message-body"><%= markdown_safe(@session.prompt) %></div>
+        </article>
+      <% else %>
+        <p class="has-text-grey">No prompt recorded for this session.</p>
+      <% end %>
+
+      <h2 class="subtitle">Transcript</h2>
+      <%= if @checkpoint.session_count > 1 do %>
+        <div class="buttons">
+          <%= for index <- 0..(@checkpoint.session_count - 1) do %>
+            <%= live_patch("Session #{index}",
+              to: session_path(@repo, @checkpoint.id) <> "?session=#{index}",
+              class: "button is-small#{if index == @session_index, do: " is-primary", else: ""}"
+            ) %>
+          <% end %>
+        </div>
+      <% end %>
+      <%= if @session && not Enum.empty?(@session.transcript) do %>
+        <div class="transcript">
+          <%= for line <- @transcript_page.slice do %>
+            <% {kind, text} = transcript_cell(line) %>
+            <div class="transcript-line">
+              <span class="tag is-small is-light"><%= kind %></span>
+              <span class="is-family-monospace"><%= text %></span>
+            </div>
+          <% end %>
+        </div>
+        <%= if @transcript_page.count > 1 do %>
+          <nav class="pagination is-right" role="navigation">
+            <%= live_patch("Previous",
+              to: "?session=#{@session_index}&page=#{@transcript_page.current - 1}",
+              class: "pagination-previous",
+              disabled: !@transcript_page.previous?
+            ) %>
+            <%= live_patch("Next",
+              to: "?session=#{@session_index}&page=#{@transcript_page.current + 1}",
+              class: "pagination-next",
+              disabled: !@transcript_page.next?
+            ) %>
+          </nav>
+        <% end %>
+        <p class="has-text-grey is-size-7">
+          Showing <%= length(@transcript_page.slice) %> of <%= length(@session.transcript) %> lines<%= if @session.truncated,
+            do: " (truncated at #{@session.transcript_bytes} bytes)" %>.
+        </p>
+      <% else %>
+        <p class="has-text-grey">No transcript recorded for this session.</p>
+      <% end %>
+
+      <h2 class="subtitle">Changes</h2>
+      <%= cond do %>
+        <% @diff -> %>
+          <p class="button is-white is-fullwidth">
+            <span>
+              <%= @diff.stats.files_changed %> file<%= if @diff.stats.files_changed > 1 do %>
+                s
+              <% end %>
+              changed,
+              <strong class="has-text-success is-family-monospace">
+                +<%= @diff.stats.insertions %>
+              </strong>
+              <strong class="has-text-danger is-family-monospace">
+                -<%= @diff.stats.deletions %>
+              </strong>
+            </span>
+          </p>
+          <table class="table is-fullwidth commit-stats-table">
+            <tbody>
+              <%= for delta <- @diff.deltas do %>
+                <% {adds, dels} = delta_stats(delta) %>
+                <tr>
+                  <td>
+                    <%= live_redirect to: blob_path(@repo, @diff.oid, Path.split(delta.new_file.path)) do %>
+                      <span class="icon"><i class="fa fa-file"></i></span>
+                      <%= delta.new_file.path %>
+                    <% end %>
+                  </td>
+                  <td class="has-text-right">
+                    <span class="has-text-success is-family-monospace">+<%= adds %></span>
+                    <span class="has-text-danger is-family-monospace">-<%= dels %></span>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+          <p>
+            <%= live_redirect("View full commit",
+              to: commit_path(@repo, @diff.oid),
+              class: "button is-small"
+            ) %>
+          </p>
+        <% @checkpoint.metadata["commit_sha"] -> %>
+          <p class="has-text-grey">
+            The linked commit
+            <span class="is-family-monospace"><%= @checkpoint.metadata["commit_sha"] %></span>
+            could not be read.
+          </p>
+        <% true -> %>
+          <p class="has-text-grey">This checkpoint is not linked to a commit.</p>
+      <% end %>
+
+      <h2 class="subtitle">Files touched</h2>
+      <%= if Enum.empty?(@checkpoint.files_touched) do %>
+        <p class="has-text-grey">No files recorded.</p>
+      <% else %>
+        <ul>
+          <%= for path <- @checkpoint.files_touched do %>
+            <li>
+              <span class="icon is-small"><i class="fa fa-file"></i></span>
+              <span class="is-family-monospace"><%= path %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+
+      <h2 class="subtitle">Tasks</h2>
+      <%= if Enum.empty?(@tasks) do %>
+        <p class="has-text-grey">No subagent tasks recorded.</p>
+      <% else %>
+        <table class="table is-fullwidth">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Description</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for task <- @tasks do %>
+              <tr>
+                <td class="is-family-monospace"><%= task.id %></td>
+                <td><%= task.data["description"] || task.data["title"] %></td>
+                <td><%= task.data["status"] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+
+    <div class="column">
+      <div class="card">
+        <header class="card-header">
+          <p class="card-header-title">Checkpoint</p>
+        </header>
+        <div class="card-content">
+          <div class="content">
+            <p>
+              <strong>Id</strong>
+              <br /><span class="is-family-monospace"><%= @checkpoint.id %></span>
+            </p>
+            <p><strong>Branch</strong> <br /><%= @checkpoint.branch || "—" %></p>
+            <p><strong>Strategy</strong> <br /><%= @checkpoint.strategy || "—" %></p>
+            <p><strong>Sessions</strong> <br /><%= @checkpoint.session_count %></p>
+            <p>
+              <strong>Recorded</strong>
+              <br /><%= datetime_format(@checkpoint.committed_at, "{relative}") %>
+            </p>
+            <%= if @checkpoint.metadata["commit_sha"] do %>
+              <p>
+                <strong>Commit</strong>
+                <br />
+                <%= live_redirect(short_oid(@checkpoint.metadata["commit_sha"]),
+                  to: commit_path(@repo, @checkpoint.metadata["commit_sha"]),
+                  class: "is-family-monospace"
+                ) %>
+              </p>
+            <% end %>
+            <%= if tokens = token_summary(@checkpoint.token_usage) do %>
+              <p><strong>Tokens</strong> <br /><%= tokens %></p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% else %>
+  <h2 class="subtitle">Sessions</h2>
+  <%= if Checkpoints.enabled?() do %>
+    <%= if @repo.public do %>
+      <article class="message is-warning">
+        <div class="message-body">
+          This repository is public, so the prompts and transcripts recorded in its checkpoints
+          can be read by anyone who can clone it.
+        </div>
+      </article>
+    <% end %>
+    <form class="field has-addons" action={sessions_path(@repo)} method="get">
+      <div class="control is-expanded">
+        <input
+          class="input"
+          type="search"
+          name="q"
+          value={@query}
+          placeholder="Search prompts, files, branches…"
+        />
+      </div>
+      <div class="control">
+        <button class="button" type="submit">Search</button>
+      </div>
+      <%= if @query != "" do %>
+        <div class="control">
+          <%= live_redirect("Clear", to: sessions_path(@repo), class: "button is-light") %>
+        </div>
+      <% end %>
+    </form>
+    <%= if @storage do %>
+      <article class="message is-info">
+        <div class="message-body">
+          <p>
+            <strong>Checkpoint storage</strong>
+            — <%= @storage.count %> checkpoint<%= if @storage.count != 1 do %>
+              s
+            <% end %>, <%= format_bytes(@storage.bytes) %>
+            <%= if @storage.truncated? do %>
+              (a lower bound; the repository has more checkpoints than can be measured in one pass)
+            <% end %>.
+            Delete a checkpoint with <code>entire clean</code>
+            and <code>git push --delete</code>.
+          </p>
+        </div>
+      </article>
+    <% end %>
+  <% end %>
+  <%= cond do %>
+    <% not Checkpoints.enabled?() -> %>
+      <article class="message is-warning">
+        <div class="message-body">Checkpoint reading is disabled on this instance.</div>
+      </article>
+    <% @query != "" && @page.slice == [] -> %>
+      <article class="message is-light">
+        <div class="message-body">
+          No recorded sessions match <strong><%= @query %></strong>.
+        </div>
+      </article>
+    <% @page && @page.slice == [] -> %>
+      <article class="message is-light">
+        <div class="message-body">
+          <p>No AI coding-agent sessions have been recorded for this repository yet.</p>
+          <p>
+            The
+            <a href="https://github.com/entireio/cli" target="_blank" rel="noopener">
+              Entire CLI
+            </a>
+            captures an agent session as a <em>checkpoint</em>
+            and pushes it alongside your code. To turn it on:
+          </p>
+          <pre>entire enable
+git add -A &amp;&amp; git commit -m "..."
+git push</pre>
+          <p>
+            Checkpoints arrive as <code>refs/entire/checkpoints/*</code>; <code>git push</code>
+            is the
+            whole transport, so nothing else has to be configured.
+          </p>
+        </div>
+      </article>
+    <% true -> %>
+      <table class="table is-fullwidth sessions-table">
+        <thead>
+          <tr>
+            <th>Checkpoint</th>
+            <th>Recorded</th>
+            <th>Branch</th>
+            <th>Commit</th>
+            <th>Files</th>
+            <th>Sessions</th>
+            <th>Tokens</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= for checkpoint <- @page.slice do %>
+            <tr>
+              <td>
+                <%= live_redirect(short_oid(checkpoint.id),
+                  to: session_path(@repo, checkpoint.id),
+                  class: "is-family-monospace"
+                ) %>
+                <%= if labels = @matched[checkpoint.id] do %>
+                  <p class="help"><%= Enum.join(labels, ", ") %></p>
+                <% end %>
+              </td>
+              <td><%= datetime_format(checkpoint.committed_at, "{relative}") %></td>
+              <td><%= checkpoint.branch || "—" %></td>
+              <td>
+                <%= if checkpoint.commit_sha do %>
+                  <%= live_redirect(short_oid(checkpoint.commit_sha),
+                    to: commit_path(@repo, checkpoint.commit_sha),
+                    class: "is-family-monospace"
+                  ) %>
+                <% else %>
+                  —
+                <% end %>
+              </td>
+              <td><%= length(checkpoint.files_touched) %></td>
+              <td><%= checkpoint.session_count %></td>
+              <td><%= token_summary(checkpoint.token_usage) || "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <%= if @page.count > 1 do %>
+        <nav class="pagination is-right" role="navigation">
+          <%= live_patch("Previous",
+            to: sessions_page_path(@query, @page.current - 1),
+            class: "pagination-previous",
+            disabled: !@page.previous?
+          ) %>
+          <%= live_patch("Next",
+            to: sessions_page_path(@query, @page.current + 1),
+            class: "pagination-next",
+            disabled: !@page.next?
+          ) %>
+        </nav>
+      <% end %>
+  <% end %>
+<% end %>

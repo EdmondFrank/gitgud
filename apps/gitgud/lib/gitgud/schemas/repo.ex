@@ -287,7 +287,20 @@ defmodule GitGud.Repo do
   defimpl GitRekt.GitRepo do
     def get_agent(repo), do: RepoPool.checkout_monitor(repo)
 
-    def push(repo, _cmds), do: DB.update(change(repo, pushed_at: NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)))
+    def push(repo, cmds) do
+      _ = invalidate_checkpoints(repo, cmds)
+
+      DB.update(change(repo, pushed_at: NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)))
+    end
+
+    # A push can create, move or delete `refs/entire/checkpoints/*`; drop the
+    # cached checkpoint index for those and let the next read rebuild it. A
+    # failed invalidation is not fatal -- the index watermark catches it too.
+    defp invalidate_checkpoints(repo, cmds) do
+      if Enum.any?(cmds, &checkpoint_cmd?/1), do: GitGud.Checkpoints.invalidate(repo), else: :ok
+    end
+
+    defp checkpoint_cmd?(cmd), do: String.starts_with?(elem(cmd, tuple_size(cmd) - 1), "refs/entire/")
   end
 
   defimpl GitGud.AuthorizationPolicies do

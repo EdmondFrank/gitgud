@@ -27,6 +27,7 @@ defimpl Phoenix.HTML.Safe, for: GitRef do
       case type do
         :branch -> [content_tag(:span, content_tag(:i, [], class: "fa fa-code-branch"), class: "icon"), content_tag(:span, name)]
         :tag -> [content_tag(:span, content_tag(:i, [], class: "fa fa-tag"), class: "icon"), content_tag(:span, name)]
+        :other -> [content_tag(:span, content_tag(:i, [], class: "fa fa-bookmark"), class: "icon"), content_tag(:span, name)]
       end
     )
   end

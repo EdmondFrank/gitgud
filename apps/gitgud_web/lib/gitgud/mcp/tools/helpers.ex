@@ -195,6 +195,40 @@ defmodule GitGud.MCP.Tools.Helpers do
     }
   end
 
+  @doc """
+  A compact AI coding-agent checkpoint summary (`GitGud.Checkpoints`).
+
+  The raw `metadata.json` is carried through as `metadata` when present, which is
+  only the case for a single checkpoint read with `GitGud.Checkpoints.get/2`.
+  """
+  def checkpoint(%{} = checkpoint) do
+    %{
+      "id" => checkpoint[:id],
+      "ref" => checkpoint[:ref],
+      "source" => checkpoint_source(checkpoint[:source]),
+      "oid" => checkpoint[:oid],
+      "branch" => checkpoint[:branch],
+      "strategy" => checkpoint[:strategy],
+      "checkpoints_count" => checkpoint[:checkpoints_count],
+      "files_touched" => checkpoint[:files_touched] || [],
+      "session_count" => checkpoint[:session_count] || 0,
+      "token_usage" => checkpoint[:token_usage],
+      "commit_sha" => checkpoint[:commit_sha],
+      "committed_at" => datetime(checkpoint[:committed_at])
+    }
+    |> put_metadata(checkpoint)
+  end
+
+  @doc """
+  A `GitGud.Checkpoints` search/provenance match (`%{checkpoint:, matched:, score:}`).
+  """
+  def checkpoint_match(%{checkpoint: checkpoint, matched: matched, score: score}) do
+    checkpoint
+    |> checkpoint()
+    |> Map.put("matched", matched)
+    |> Map.put("score", score)
+  end
+
   def ref(%GitRef{} = ref),
     do: %{"name" => ref.name, "oid" => oid(ref.oid), "type" => to_string(ref.type)}
 
@@ -282,4 +316,14 @@ defmodule GitGud.MCP.Tools.Helpers do
   defp comment_body(%Ecto.Association.NotLoaded{}), do: nil
   defp comment_body(%Comment{body: body}), do: body
   defp comment_body(_other), do: nil
+
+  defp checkpoint_source(nil), do: nil
+  defp checkpoint_source(source) when is_atom(source), do: Atom.to_string(source)
+  defp checkpoint_source(source) when is_binary(source), do: source
+  defp checkpoint_source(_other), do: nil
+
+  defp put_metadata(serialized, %{metadata: metadata}),
+    do: Map.put(serialized, "metadata", metadata)
+
+  defp put_metadata(serialized, _checkpoint), do: serialized
 end

@@ -67,7 +67,8 @@ defmodule GitGud.MCP.ServerTest do
       assert "whoami" in names
       assert "get_repository" in names
       assert "create_issue" in names
-      assert length(names) == 22
+      assert "get_checkpoint" in names
+      assert length(names) == 26
     end
 
     test "whoami returns the authenticated user", %{token: token, user: user} do

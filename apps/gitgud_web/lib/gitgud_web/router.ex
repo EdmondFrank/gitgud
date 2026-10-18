@@ -135,6 +135,9 @@ defmodule GitGud.Web.Router do
         live "/commits/:revision/*path", CommitHistoryLive, :history, as: :codebase
         live "/commit/:oid", CommitDiffLive, :commit, as: :codebase
 
+        live "/sessions", CheckpointLive, :sessions, as: :sessions
+        live "/sessions/:id", CheckpointLive, :session, as: :sessions
+
         get "/branches", CodebaseController, :branches
         post "/branches", CodebaseController, :create_branch
         get "/tags", CodebaseController, :tags

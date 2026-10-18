@@ -9,6 +9,12 @@
               <button class="commit-oid button is-small is-dark is-inverted has-text-weight-bold">
                 <span class="is-family-monospace"><%= oid_fmt(@commit.oid) %></span>
               </button>
+              <%= for id <- @checkpoint_ids do %>
+                <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/sessions/#{id}", class: "button is-small is-link is-inverted", title: "AI agent session" do %>
+                  <span class="icon"><i class="fa fa-robot"></i></span>
+                  <span class="is-family-monospace"><%= String.slice(id, 0, 7) %></span>
+                <% end %>
+              <% end %>
               <%= live_redirect to: ~p"/#{@repo.owner_login}/#{@repo.name}/commits/#{@commit}/", class: "button is-small is-link is-inverted" do %>
                 <span class="icon">
                   <i class="fa fa-history"></i>

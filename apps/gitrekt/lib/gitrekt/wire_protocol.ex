@@ -21,6 +21,10 @@ defmodule GitRekt.WireProtocol do
   @upload_caps ~w(multi_ack multi_ack_detailed)
   @receive_caps ~w(report-status delete-refs)
 
+  # Characters Git forbids anywhere in a reference name (`git check-ref-format(1)`):
+  # ASCII control characters, space, and `~^:?*[\`.
+  @invalid_reference_chars ~r/[\x00-\x20\x7f~^:?*\[\\]/
+
   @doc """
   Callback used to transist a service to the next step.
   """
@@ -39,7 +43,7 @@ defmodule GitRekt.WireProtocol do
     lines
   end
 
-  @spec encode(Enumerable.t) :: iolist
+  @spec encode(Enumerable.t()) :: iolist
   def encode(lines) do
     Enum.map(lines, &pkt_line/1)
   end
@@ -47,7 +51,7 @@ defmodule GitRekt.WireProtocol do
   @doc """
   Returns a stream of decoded *PKT-LINE*s for the given `pkt`.
   """
-  @spec decode(binary) :: Enumerable.t
+  @spec decode(binary) :: Enumerable.t()
   def decode(pkt) do
     Stream.map(pkt_stream(pkt), &pkt_decode/1)
   end
@@ -55,7 +59,7 @@ defmodule GitRekt.WireProtocol do
   @doc """
   Returns a new service object for the given `repo` and `executable`.
   """
-  @spec new(GitAgent.agent, binary, keyword) :: struct
+  @spec new(GitAgent.agent(), binary, keyword) :: struct
   def new(agent, executable, init_values \\ []) do
     struct(exec_impl(executable), Keyword.put(init_values, :agent, agent))
   end
@@ -65,6 +69,7 @@ defmodule GitRekt.WireProtocol do
   """
   @spec next(struct, binary | :discovery) :: {:cont | :halt, struct, iolist}
   def next(service, data \\ :discovery)
+
   def next(service, :discovery) do
     {service, lines} = exec_next(service, [])
     {service, encode(lines)}
@@ -102,27 +107,64 @@ defmodule GitRekt.WireProtocol do
 
   @doc """
   Returns a stream describing each ref and it current value.
+
+  References under one of the `:hide_references` prefixes in `opts` are left out of
+  the advertisement; `GitGud` hides the checkpoint namespace (`refs/entire/*`) that
+  way when checkpoint reading is disabled. `HEAD` is always advertised.
   """
-  @spec reference_discovery(GitAgent.agent, binary, [binary]) :: iolist
-  def reference_discovery(agent, service, extra_capabilities \\ []) do
+  @spec reference_discovery(GitAgent.agent(), binary, [binary], keyword) :: iolist
+  def reference_discovery(agent, service, extra_capabilities \\ [], opts \\ []) do
     {:ok, refs} = GitAgent.references(agent, target: :commit, stream_chunk_size: :infinity)
-    [reference_head(agent)|Enum.to_list(refs)]
+    hidden = Keyword.get(opts, :hide_references, [])
+
+    [reference_head(agent) | Enum.reject(Enum.to_list(refs), &hidden_reference?(&1, hidden))]
     |> List.flatten()
     |> Enum.map(&format_ref_line/1)
-    |> List.update_at(0, &(&1 <> "\0" <> Enum.join(server_capabilities(service) ++ extra_capabilities, " ")))
+    |> List.update_at(
+      0,
+      &(&1 <> "\0" <> Enum.join(server_capabilities(service) ++ extra_capabilities, " "))
+    )
     |> Enum.concat([:flush])
   end
 
   @doc """
+  Returns `true` when `name` is a valid Git reference name.
+
+  Mirrors `git check-ref-format(1)`: the name has to live under `refs/`, have a
+  component after it, and contain no component that is empty, starts with `.`,
+  ends with `.` or `.lock`, and no `..`, `@{`, or any of the characters Git
+  reserves. `GitRekt.WireProtocol.ReceivePack` uses this to reject a reference
+  name a raw client sends over the wire, which would otherwise be written as-is.
+  """
+  @spec valid_reference_name?(binary) :: boolean
+  def valid_reference_name?(name) when is_binary(name) do
+    String.starts_with?(name, "refs/") and
+      byte_size(name) > 5 and
+      not (name =~ @invalid_reference_chars) and
+      not String.contains?(name, "..") and
+      not String.contains?(name, "@{") and
+      name
+      |> String.split("/")
+      |> Enum.all?(fn component ->
+        component != "" and not String.starts_with?(component, ".") and
+          not String.ends_with?(component, ".lock") and
+          not String.ends_with?(component, ".")
+      end)
+  end
+
+  def valid_reference_name?(_name), do: false
+
+  @doc """
   Returns the given `data` formatted as *PKT-LINE*
   """
-  @spec pkt_line(binary|:flush) :: binary
+  @spec pkt_line(binary | :flush) :: binary
   def pkt_line(data \\ :flush)
   def pkt_line(:flush), do: "0000"
   def pkt_line({:ack, oid}), do: pkt_line("ACK #{Git.oid_fmt(oid)}")
   def pkt_line({:ack, oid, status}), do: pkt_line("ACK #{Git.oid_fmt(oid)} #{status}")
   def pkt_line(:nak), do: pkt_line("NAK")
   def pkt_line(<<"PACK", _rest::binary>> = pack), do: pack
+
   def pkt_line(data) when is_binary(data) do
     data
     |> byte_size()
@@ -154,7 +196,8 @@ defmodule GitRekt.WireProtocol do
     {service, _skip} =
       if skip = Keyword.get(opts, :skip),
         do: exec_skip(service, skip),
-      else: service
+        else: service
+
     {service, lines} = exec_all(service, lines)
     {service, encode(lines)}
   end
@@ -170,6 +213,7 @@ defmodule GitRekt.WireProtocol do
       {service, [], out} ->
         telemetry_stop(service, old_state, ref, event_time)
         {service, acc ++ out}
+
       {service, lines, out} ->
         telemetry_next(service, old_state, ref, event_time)
         exec_next_state(service, lines, acc ++ out, service.state, ref, event_time)
@@ -193,26 +237,37 @@ defmodule GitRekt.WireProtocol do
 
   defp exec_skip(service, count) when count > 0 do
     Enum.reduce(1..count, {service, []}, fn _i, {service, states} ->
-      {skip(service), [service.state|states]}
+      {skip(service), [service.state | states]}
     end)
   end
 
-  defp exec_impl("git-upload-pack"),  do: GitRekt.WireProtocol.UploadPack
+  defp exec_impl("git-upload-pack"), do: GitRekt.WireProtocol.UploadPack
   defp exec_impl("git-receive-pack"), do: GitRekt.WireProtocol.ReceivePack
   defp exec_impl("git-lfs-transfer"), do: GitRekt.WireProtocol.LfsTransfer
   defp exec_impl("git-lfs-authenticate"), do: GitRekt.WireProtocol.LfsAuthenticate
 
   defp telemetry_start(_service, state, _ref) when state == :buffer, do: :ok
+
   defp telemetry_start(service, state, ref) do
-    :telemetry.execute([:gitrekt, :wire_protocol, :start], %{}, %{ref: ref, service: __type__(service), state: state})
+    :telemetry.execute([:gitrekt, :wire_protocol, :start], %{}, %{
+      ref: ref,
+      service: __type__(service),
+      state: state
+    })
   end
 
   defp telemetry_stop(_service, state, _ref, _event_time) when state == :buffer, do: :ok
+
   defp telemetry_stop(service, state, ref, event_time) do
-    :telemetry.execute([:gitrekt, :wire_protocol, :stop], %{duration: :os.system_time(:microsecond) - event_time}, %{ref: ref, service: __type__(service), state: state})
+    :telemetry.execute(
+      [:gitrekt, :wire_protocol, :stop],
+      %{duration: :os.system_time(:microsecond) - event_time},
+      %{ref: ref, service: __type__(service), state: state}
+    )
   end
 
   defp telemetry_next(service, state, _ref, _event_time) when service.state == state, do: :ok
+
   defp telemetry_next(service, state, ref, event_time) do
     telemetry_stop(service, state, ref, event_time)
     telemetry_start(service, service.state, ref)
@@ -220,14 +275,24 @@ defmodule GitRekt.WireProtocol do
 
   defp server_agent_capability, do: "agent=gitrekt/#{Application.spec(:gitrekt, :vsn)}"
 
-  defp server_capabilities("git-receive-pack"), do: [server_agent_capability()|@receive_caps]
-  defp server_capabilities("git-upload-pack"), do: [server_agent_capability()|@upload_caps]
+  defp server_capabilities("git-receive-pack"), do: [server_agent_capability() | @receive_caps]
+  defp server_capabilities("git-upload-pack"), do: [server_agent_capability() | @upload_caps]
 
-  defp format_ref_line(%GitRef{oid: oid, prefix: prefix, name: name}), do: "#{Git.oid_fmt(oid)} #{prefix <> name}"
+  defp format_ref_line(%GitRef{oid: oid, prefix: prefix, name: name}),
+    do: "#{Git.oid_fmt(oid)} #{prefix <> name}"
+
+  defp hidden_reference?(_ref, []), do: false
+
+  defp hidden_reference?(%GitRef{prefix: prefix, name: name}, prefixes) do
+    name = prefix <> name
+    Enum.any?(prefixes, &String.starts_with?(name, &1))
+  end
+
+  defp hidden_reference?(_ref, _prefixes), do: false
 
   defp reference_head(agent) do
     case GitAgent.head(agent) do
-      {:ok, head} -> %{head|prefix: "", name: "HEAD"}
+      {:ok, head} -> %{head | prefix: "", name: "HEAD"}
       {:error, _reason} -> []
     end
   end
@@ -239,21 +304,27 @@ defmodule GitRekt.WireProtocol do
   defp pkt_next(""), do: {:halt, nil}
   defp pkt_next("0000" <> rest), do: {[:flush], rest}
   defp pkt_next("PACK" <> _rest = pack), do: {[{:pack, pack}], ""}
+
   defp pkt_next(<<hex::bytes-size(4), payload::binary>> = pkt) do
     case Integer.parse(hex, 16) do
       {payload_size, ""} ->
         data_size = payload_size - 4
         data_size_skip_lf = data_size - 1
+
         case payload do
           <<data::bytes-size(data_size_skip_lf), "\n", rest::binary>> ->
             {[data], rest}
+
           <<data::bytes-size(data_size), rest::binary>> ->
             {[data], rest}
+
           <<data::bytes-size(data_size)>> ->
             {[data], ""}
         end
+
       :error ->
-        raise "Invalid PKT line #{inspect pkt}" # TODO
+        # TODO
+        raise "Invalid PKT line #{inspect(pkt)}"
     end
   end
 

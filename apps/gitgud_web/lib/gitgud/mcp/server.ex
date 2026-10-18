@@ -33,6 +33,12 @@ defmodule GitGud.MCP.Server do
   component(GitGud.MCP.Tools.ReadFile)
   component(GitGud.MCP.Tools.GetCommit)
 
+  # AI coding-agent sessions (Entire CLI checkpoints)
+  component(GitGud.MCP.Tools.ListCheckpoints)
+  component(GitGud.MCP.Tools.GetCheckpoint)
+  component(GitGud.MCP.Tools.SearchCheckpoints)
+  component(GitGud.MCP.Tools.CheckpointProvenance)
+
   # Issues
   component(GitGud.MCP.Tools.ListIssues)
   component(GitGud.MCP.Tools.GetIssue)

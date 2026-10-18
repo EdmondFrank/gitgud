@@ -207,7 +207,7 @@ creation; only prefix+hash are stored. Never log or return the token.
 | Scope | Grants |
 |---|---|
 | `user:read` | `whoami`, and user results in `search` |
-| `repo:read` | repository metadata, refs, trees, blobs, commits, releases, and repository results in `search` |
+| `repo:read` | repository metadata, refs, trees, blobs, commits, releases, AI coding-agent checkpoints, and repository results in `search` |
 | `repo:write` | future repo mutations |
 | `issue:read` | issues, comments, labels |
 | `issue:write` | create/comment/close/reopen/retitle/label issues |
@@ -247,11 +247,32 @@ nav; the plaintext is rendered exactly once on the `create` response
 | `get_tree` | `owner`, `name`, `revision`, `path` | `GitAgent` tree | `:pull` |
 | `read_file` | `owner`, `name`, `revision`, `path`, `max_bytes` | `GitAgent` blob | `:pull` |
 | `get_commit` | `owner`, `name`, `oid` | `GitAgent` commit (+diff stat) | `:pull` |
+| `list_checkpoints` | `owner`, `name`, `limit`, `offset` | `GitGud.Checkpoints.list/2` | `:pull` |
+| `get_checkpoint` | `owner`, `name`, `id`, `session`, `max_bytes` | `GitGud.Checkpoints.get/2` + `tasks/2` + `session/4` | `:pull` |
+| `search_checkpoints` | `owner`, `name`, `query`, `limit`, `include_transcripts` | `GitGud.Checkpoints.search/3` | `:pull` |
+| `checkpoint_provenance` | `owner`, `name`, `path`, `limit` | `GitGud.Checkpoints.provenance/3` | `:pull` |
 | `list_issues` | `owner`, `name`, `state`, `labels`, `limit`, `cursor` | `IssueQuery.repo_issues_with_reply_count` | `:pull` |
 | `get_issue` | `owner`, `name`, `number` | `IssueQuery.repo_issue` | `:pull` |
 | `list_issue_comments` | `owner`, `name`, `number` | `IssueQuery` comments | `:pull` |
 | `list_releases` | `owner`, `name`, `limit` | `ReleaseQuery` | `:pull` |
 | `search` | `all` \| `user` \| `repo` | `RepoQuery.search` + `UserQuery.search` | `repo:read` + `user:read` |
+
+The four checkpoint tools read the AI coding-agent sessions the
+[Entire CLI](https://github.com/entireio/cli) pushes as `refs/entire/checkpoints/*`
+(see `guides/Sessions and Checkpoints.md`). `get_checkpoint` never returns an
+unbounded transcript: pass `session` to include one session's prompt and
+transcript, and `max_bytes` to cap it (default 256 KiB). Its `id` is a checkpoint id — a full ULID, a legacy
+hex id, or any **unambiguous prefix** of one (at least 4 characters). `search_checkpoints` runs
+`GitGud.Checkpoints.search/3`, whose **prompt term index** lives in `GitGud.MetaDB`:
+every query term has to match the checkpoint id, branch, strategy, commit, touched
+files or one of its session prompts, and each result carries the `matched` labels
+and a `score` — no Git read, and no transcript is ever indexed. Pass
+`include_transcripts: true` to *additionally* scan the agent transcripts of the 10
+most recent checkpoints (one session blob at a time, capped at 64 KiB each) and
+merge those hits in; `total_count` is the full match count, `limit` only truncates
+the returned list. `checkpoint_provenance` is the `blame`-style companion — given a
+file path (or a directory, which matches everything below it) it lists the
+checkpoints that touched it, newest first, from `files_touched` alone.
 
 **Write (authorization-gated; all also require the matching `*:write` scope on a PAT in Phase 5)**
 

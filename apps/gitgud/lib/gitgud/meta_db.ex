@@ -33,6 +33,23 @@ defmodule GitGud.MetaDB do
     end
   end
 
+  @doc """
+  Returns the value stored for the given `key`, or `nil`.
+
+  Unlike `get/1`, the value is returned as-is instead of being coerced into a
+  `MetaObject`, so this can be used for arbitrary metadata documents.
+  """
+  def get_raw(key) do
+    CubDB.get(db(), key)
+  end
+
+  @doc """
+  Deletes the value stored for the given `key`.
+  """
+  def delete(key) do
+    CubDB.delete(db(), key)
+  end
+
   def list({min, max}) do
     db()
     |> CubDB.select(min_key: min, max_key: max)

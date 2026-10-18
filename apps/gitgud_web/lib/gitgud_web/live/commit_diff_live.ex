@@ -12,6 +12,7 @@ defmodule GitGud.Web.CommitDiffLive do
   alias GitGud.DBQueryable
 
   alias GitGud.User
+  alias GitGud.Checkpoints
   alias GitGud.CommitLineReview
   alias GitGud.Comment
   alias GitGud.GPGKey
@@ -42,6 +43,7 @@ defmodule GitGud.Web.CommitDiffLive do
       |> assign_repo!(user_login, repo_name)
       |> assign_repo_permissions()
       |> assign_repo_open_issue_count()
+      |> assign(checkpoint_ids: [])
       |> assign_agent!(),
       temporary_assigns: [reviews: []]
     }
@@ -57,6 +59,7 @@ defmodule GitGud.Web.CommitDiffLive do
       :noreply,
       socket
       |> assign_diff!(oid_parse(commit_oid))
+      |> assign_checkpoints()
       |> assign_reviews()
       |> assign_comment_count()
       |> assign_page_title()
@@ -197,6 +200,16 @@ defmodule GitGud.Web.CommitDiffLive do
     assigns = resolve_commit_diff!(socket.assigns.agent, oid)
     assigns = Map.update!(assigns, :commit_info, &resolve_db_commit_info/1)
     assign(socket, assigns)
+  end
+
+  defp assign_checkpoints(socket) do
+    checkpoint_ids =
+      case Checkpoints.commit_ids(socket.assigns.repo, Base.encode16(socket.assigns.commit.oid, case: :lower)) do
+        {:ok, ids} -> ids
+        {:error, _reason} -> []
+      end
+
+    assign(socket, :checkpoint_ids, checkpoint_ids)
   end
 
   defp assign_reviews(socket) do

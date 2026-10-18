@@ -1150,6 +1150,7 @@ defmodule GitRekt.GitAgent do
 
   defp resolve_reference_type("refs/heads/"), do: :branch
   defp resolve_reference_type("refs/tags/"), do: :tag
+  defp resolve_reference_type(_prefix), do: :other
 
   defp resolve_reference_peel!(ref, target, handle) do
     case fetch_reference_target(resolve_reference(ref), target, handle) do
@@ -1232,6 +1233,11 @@ defmodule GitRekt.GitAgent do
         {:ok, ref}
     end
   end
+
+  # Any other reference namespace, such as `refs/entire/checkpoints/*` or
+  # `refs/notes/*`. Such a reference points directly at a commit, so it needs
+  # no peeling — the behavior branches have.
+  defp fetch_reference_target(%GitRef{} = ref, _target, _handle), do: {:ok, ref}
 
   defp fetch_tree(nil, _handle) do
     {:ok, %GitTree{oid: <<0::160>>, __ref__: nil}}

@@ -163,6 +163,12 @@ defmodule GitGud.Web.Layouts do
             <% end %>
           </a>
         </li>
+        <li class={if helper == :checkpoint_live, do: "is-active"}>
+          <a href={~p"/#{@repo.owner_login}/#{@repo.name}/sessions"}>
+            <span class="icon"><i class="fa fa-robot" aria-hidden="true"></i></span>
+            <span>Sessions</span>
+          </a>
+        </li>
         <%= if authorized?(@current_user, @repo, :admin) do %>
         <li class={if (helper == :repo && action in [:edit, :update]) || helper == :maintainer, do: "is-active"}>
           <a href={~p"/#{@repo.owner_login}/#{@repo.name}/settings"}>

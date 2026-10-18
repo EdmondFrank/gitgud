@@ -31,6 +31,7 @@ defmodule GitGud.SSHServer do
   """
 
   alias GitGud.Account
+  alias GitGud.Checkpoints
   alias GitGud.User
   alias GitGud.UserQuery
   alias GitGud.RepoQuery
@@ -44,29 +45,32 @@ defmodule GitGud.SSHServer do
   @behaviour :ssh_server_channel
   @behaviour :ssh_server_key_api
 
-  defstruct [:conn, :chan, :user, :repo, :service, request_size: 0]
+  defstruct [:conn, :chan, :user, :repo, :service, request_size: 0, exit_status_sent: false]
 
   @type t :: %__MODULE__{
-    conn: :ssh.connection_ref,
-    chan: :ssh.channel_id,
-    user: User.t,
-    service: module,
-    request_size: non_neg_integer
-  }
+          conn: :ssh.connection_ref(),
+          chan: :ssh.channel_id(),
+          user: User.t(),
+          service: module,
+          request_size: non_neg_integer
+        }
 
   @doc """
   Returns a child-spec to use as part of a supervision tree.
   """
-  @spec child_spec([]) :: Supervisor.Spec.spec
+  @spec child_spec([]) :: Supervisor.Spec.spec()
   def child_spec([] = _args) do
     config_opts = Application.get_env(:gitgud, __MODULE__)
     port = Keyword.fetch!(config_opts, :port)
     key_path = Keyword.fetch!(config_opts, :host_key_dir)
-    %{id: __MODULE__,
+
+    %{
+      id: __MODULE__,
       start: {:ssh, :daemon, [port, daemon_opts(key_path)]},
       restart: :permanent,
       shutdown: 5000,
-      type: :worker}
+      type: :worker
+    }
   end
 
   #
@@ -80,6 +84,7 @@ defmodule GitGud.SSHServer do
   def is_auth_key(key, login, _opts) do
     if user = UserQuery.by_login(to_string(login), preload: :ssh_keys) do
       fingerprint = to_string(:ssh.hostkey_fingerprint(key))
+
       if ssh_key = Enum.find(user.ssh_keys, &(&1.fingerprint == fingerprint)) do
         !!SSHKey.update_timestamp!(ssh_key)
       end
@@ -94,7 +99,7 @@ defmodule GitGud.SSHServer do
   @impl true
   def handle_msg({:ssh_channel_up, chan, conn}, state) do
     [user: login] = :ssh.connection_info(conn, [:user])
-    {:ok, %{state|conn: conn, chan: chan, user: UserQuery.by_login(to_string(login))}}
+    {:ok, %{state | conn: conn, chan: chan, user: UserQuery.by_login(to_string(login))}}
   end
 
   @impl true
@@ -103,7 +108,10 @@ defmodule GitGud.SSHServer do
   end
 
   @impl true
-  def handle_ssh_msg({:ssh_cm, conn, {:exec, chan, _reply, cmd}}, %__MODULE__{conn: conn, chan: chan, user: user} = state) do
+  def handle_ssh_msg(
+        {:ssh_cm, conn, {:exec, chan, _reply, cmd}},
+        %__MODULE__{conn: conn, chan: chan, user: user} = state
+      ) do
     case parse_cmd(to_string(cmd)) do
       {:ok, exec, {user_login, repo_name}, _extra_args} ->
         if repo = RepoQuery.user_repo(user_login, repo_name, viewer: user) do
@@ -112,9 +120,18 @@ defmodule GitGud.SSHServer do
               {:ok, agent} ->
                 {service, output} =
                   WireProtocol.next(
-                    WireProtocol.new(agent, exec, repo: repo, user_login: user_login, repo_name: repo_name))
+                    WireProtocol.new(agent, exec,
+                      repo: repo,
+                      user_login: user_login,
+                      repo_name: repo_name,
+                      hide_references: Checkpoints.hidden_reference_prefixes(),
+                      reference_policy: Checkpoints.reference_policy()
+                    )
+                  )
+
                 :ssh_connection.send(conn, chan, output)
-                {:ok, %{state|repo: repo, service: service}}
+                {:ok, %{state | repo: repo, service: service}}
+
               {:error, _reason} ->
                 {:stop, chan, state}
             end
@@ -124,22 +141,42 @@ defmodule GitGud.SSHServer do
         else
           {:stop, chan, state}
         end
+
       :error ->
         {:stop, chan, state}
     end
   end
 
   @impl true
-  def handle_ssh_msg({:ssh_cm, conn, {:data, chan, _type, data}}, %__MODULE__{conn: conn, chan: chan, service: service, request_size: request_size} = state) do
+  def handle_ssh_msg(
+        {:ssh_cm, conn, {:data, chan, _type, data}},
+        %__MODULE__{conn: conn, chan: chan, service: service, request_size: request_size} = state
+      ) do
     if request_size <= Application.get_env(:gitgud, :git_max_request_size, :infinity) do
       case WireProtocol.next(service, data) do
         {:cont, service, output} ->
           :ssh_connection.send(conn, chan, output)
-          {:ok, %{state|service: service, request_size: request_size + byte_size(data)}}
+          {:ok, %{state | service: service, request_size: request_size + byte_size(data)}}
+
         {:halt, service, output} ->
+          # The service is done, so *we* end the session rather than waiting for the
+          # client's EOF (see the `{:eof, chan}` clause below). The exit status must be
+          # reported here: on a fetch/clone the client closes the channel as soon as it has
+          # the pack, so we see `{:closed, chan}` and never the `{:eof, chan}` clause —
+          # which OpenSSH turns into exit code 255 and git into "fatal: remote transport
+          # reported error". `exit_status_sent` stops the `{:eof, chan}` clause from
+          # reporting it a second time, which a push would otherwise trigger.
           :ssh_connection.send(conn, chan, output)
+          :ssh_connection.exit_status(conn, chan, 0)
           :ssh_connection.send_eof(conn, chan)
-          {:ok, %{state|service: service, request_size: request_size + byte_size(data)}}
+
+          {:ok,
+           %{
+             state
+             | service: service,
+               exit_status_sent: true,
+               request_size: request_size + byte_size(data)
+           }}
       end
     else
       :ssh_connection.send(conn, chan, 1, "Request entity too large, aborting.\r\n")
@@ -151,16 +188,30 @@ defmodule GitGud.SSHServer do
 
   @impl true
   def handle_ssh_msg({:ssh_cm, conn, {:eof, chan}}, %__MODULE__{conn: conn, chan: chan} = state) do
-    :ssh_connection.exit_status(conn, chan, 0)
+    # Only a session that is still running needs its status reported here; a halted one
+    # already did (and a second report makes OpenSSH log "exitval sent twice").
+    if !state.exit_status_sent, do: :ssh_connection.exit_status(conn, chan, 0)
     :ssh_connection.close(conn, chan)
     {:ok, state}
   end
 
   @impl true
-  def handle_ssh_msg({:ssh_cm, conn, {:shell, chan, _reply}}, %__MODULE__{conn: conn, chan: chan} = state) do
+  def handle_ssh_msg(
+        {:ssh_cm, conn, {:shell, chan, _reply}},
+        %__MODULE__{conn: conn, chan: chan} = state
+      ) do
     :ssh_connection.send(conn, chan, "You are not allowed to start a shell.\r\n")
     :ssh_connection.send_eof(conn, chan)
     {:stop, chan, state}
+  end
+
+  # The peer closed the channel. This is the normal ending for a `{:halt, …}` above, where
+  # the exit status has already been sent — note it does *not* go through `{:eof, chan}`.
+  def handle_ssh_msg(
+        {:ssh_cm, conn, {:closed, chan}},
+        %__MODULE__{conn: conn, chan: chan} = state
+      ) do
+    {:ok, state}
   end
 
   def handle_ssh_msg({:ssh_cm, conn, _msg}, %__MODULE__{conn: conn} = state) do
@@ -174,25 +225,36 @@ defmodule GitGud.SSHServer do
   # Helpers
   #
 
-  defp authorized?(user, repo, "git-upload-pack"), do: Authorization.authorized?(user, repo, :pull)
-  defp authorized?(user, repo, "git-receive-pack"), do: Authorization.authorized?(user, repo, :push)
-  defp authorized?(user, repo, "git-lfs-transfer"), do: Authorization.authorized?(user, repo, :push)
-  defp authorized?(user, repo, "git-lfs-authenticate"), do: Authorization.authorized?(user, repo, :push)
+  defp authorized?(user, repo, "git-upload-pack"),
+    do: Authorization.authorized?(user, repo, :pull)
+
+  defp authorized?(user, repo, "git-receive-pack"),
+    do: Authorization.authorized?(user, repo, :push)
+
+  defp authorized?(user, repo, "git-lfs-transfer"),
+    do: Authorization.authorized?(user, repo, :push)
+
+  defp authorized?(user, repo, "git-lfs-authenticate"),
+    do: Authorization.authorized?(user, repo, :push)
 
   defp daemon_opts(system_dir) do
-    [key_cb: {__MODULE__, []},
-     ssh_cli: {__MODULE__, []},
-     parallel_login: true,
-     pwdfun: &check_credentials/2,
-     subsystems: [],
-     system_dir: to_charlist(system_dir)]
+    [
+      key_cb: {__MODULE__, []},
+      ssh_cli: {__MODULE__, []},
+      parallel_login: true,
+      pwdfun: &check_credentials/2,
+      subsystems: [],
+      system_dir: to_charlist(system_dir)
+    ]
   end
 
   defp parse_cmd(cmd) do
-    [exec|args] = String.split(cmd)
+    [exec | args] = String.split(cmd)
+
     case parse_args(args) do
       {repo_path, extra_args} ->
         {:ok, exec, repo_path, extra_args}
+
       nil ->
         :error
     end
@@ -201,12 +263,14 @@ defmodule GitGud.SSHServer do
   defp parse_args(args) do
     if idx = Enum.find_index(args, &(!String.starts_with?(to_string(&1), "--"))) do
       {path, args} = List.pop_at(args, idx)
+
       [user_login, repo_name] =
         path
         |> to_string()
         |> String.trim("'")
         |> Path.relative()
         |> Path.split()
+
       if String.ends_with?(repo_name, ".git") do
         {{user_login, String.slice(repo_name, 0..-5)}, args}
       end

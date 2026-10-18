@@ -12,6 +12,7 @@ defmodule GitGud.Web.CommitHistoryLive do
   alias GitGud.DBQueryable
 
   alias GitGud.User
+  alias GitGud.Checkpoints
   alias GitGud.ReviewQuery
   alias GitGud.GPGKey
 
@@ -35,6 +36,7 @@ defmodule GitGud.Web.CommitHistoryLive do
       |> assign(rev_spec: nil, revision: nil, commit: nil)
       |> assign_repo!(user_login, repo_name)
       |> assign_repo_open_issue_count()
+      |> assign_checkpoints()
       |> assign_agent!()
     }
   end
@@ -74,6 +76,28 @@ defmodule GitGud.Web.CommitHistoryLive do
 
   defp assign_repo_open_issue_count(socket) do
     assign(socket, :repo_open_issue_count, GitGud.IssueQuery.count_repo_issues(socket.assigns.repo, status: :open))
+  end
+
+  # One `GitGud.Checkpoints.list/2` call for the whole page, so a commit row can
+  # look its checkpoint(s) up by the sha the CLI wrote into the commit trailer.
+  defp assign_checkpoints(socket) do
+    checkpoints =
+      case Checkpoints.list(socket.assigns.repo) do
+        {:ok, checkpoints} -> checkpoints
+        {:error, _reason} -> []
+      end
+
+    assign(socket, :checkpoints_by_commit, Enum.reduce(checkpoints, %{}, &index_checkpoint/2))
+  end
+
+  defp index_checkpoint(%{commit_sha: nil}, acc), do: acc
+
+  defp index_checkpoint(%{commit_sha: commit_sha} = checkpoint, acc) do
+    Map.update(acc, commit_sha, [checkpoint], &[checkpoint | &1])
+  end
+
+  defp commit_checkpoints(commit, checkpoints_by_commit) do
+    Map.get(checkpoints_by_commit, Base.encode16(commit.oid, case: :lower), [])
   end
 
   defp assign_agent!(socket) do

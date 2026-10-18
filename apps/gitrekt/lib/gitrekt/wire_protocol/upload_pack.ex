@@ -8,11 +8,12 @@ defmodule GitRekt.WireProtocol.UploadPack do
   alias GitRekt.Git
   alias GitRekt.GitAgent
 
-  import GitRekt.WireProtocol, only: [reference_discovery: 3]
+  import GitRekt.WireProtocol, only: [reference_discovery: 4]
 
   @service_name "git-upload-pack"
 
-  defstruct [:agent, state: :disco, caps: [], wants: [], haves: []]
+  defstruct [:agent, state: :disco, caps: [], wants: [], haves: [], hide_references: []]
+
 
   @type t :: %__MODULE__{
     agent: GitAgent.agent,
@@ -20,6 +21,7 @@ defmodule GitRekt.WireProtocol.UploadPack do
     caps: [binary],
     wants: [Git.oid],
     haves: [Git.oid],
+    hide_references: [binary]
   }
 
   #
@@ -28,11 +30,11 @@ defmodule GitRekt.WireProtocol.UploadPack do
 
   @impl true
   def next(%__MODULE__{state: :disco} = handle, [:flush|lines]) do
-    {%{handle|state: :done, caps: []}, lines, reference_discovery(handle.agent, @service_name, handle.caps)}
+    {%{handle|state: :done, caps: []}, lines, discovery(handle)}
   end
 
   def next(%__MODULE__{state: :disco} = handle, lines) do
-    {%{handle|state: :upload_req, caps: []}, lines, reference_discovery(handle.agent, @service_name, handle.caps)}
+    {%{handle|state: :upload_req, caps: []}, lines, discovery(handle)}
   end
 
   def next(%__MODULE__{state: :upload_req} = handle, [:flush|lines]) do
@@ -104,6 +106,14 @@ defmodule GitRekt.WireProtocol.UploadPack do
   #
   # Helpers
   #
+
+  # The advertisement honors the reference exclusions the caller configured (see
+  # `GitRekt.WireProtocol.reference_discovery/4`).
+  defp discovery(handle) do
+    reference_discovery(handle.agent, @service_name, handle.caps,
+      hide_references: handle.hide_references
+    )
+  end
 
   defp obj_match?({type, _oid}, type), do: true
   defp obj_match?(_line, _type), do: false

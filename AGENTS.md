@@ -191,6 +191,15 @@ watcher automatically (`node build.js --watch`).
   `GitGud.ContentStore.start_link/1` `Keyword.fetch!` their `:data_dir`. Both dev and
   test configs set it (test writes under `apps/gitgud/test/data/`).
 - **Ports**: dev HTTP `4000`, SSH git `9989`; test SSH `9899`; production SSH `1022`/HTTP `4000`.
+- **The SSH git server must report the exit status on the path where *it* ends the
+  session.** `GitGud.SSHServer` (`apps/gitgud/lib/gitgud/ssh_server.ex`) has to call
+  `:ssh_connection.exit_status/3` when upload-pack halts, not only when the client sends
+  EOF: on a clone/fetch the client closes the channel as soon as it has the pack, so
+  otherwise OpenSSH hands git `255` and it fails with `fatal: remote transport reported
+  error` — for *every* repository. Report it exactly once (the `exit_status_sent` flag) or a
+  push logs `mux_client_request_session: exitval sent twice` and git prints a spurious
+  `error: failed to push some refs`. Covered by `ssh_server_test.exs` ("clones and fetches
+  over SSH"). Details: `guides/Sessions and Checkpoints.md` §12.
 - **`mix` in a child app ignores the umbrella root `mix.exs`** — a root-only
   `override: true` does not suppress a conflict seen from *inside* an app, which is exactly
   what `RUN cd apps/gitgud_web && mix assets.deploy` does. `peri` (pulled in by
@@ -250,3 +259,122 @@ so AI agents can drive it. Design + phased plan: `guides/MCP.md`; client setup
   `tools_test.exs`, `write_tools_test.exs`, `personal_access_token_auth_test.exs`,
   `telemetry_test.exs`), `apps/gitgud_web/test/gitgud_web/controllers/token_controller_test.exs`,
   and `apps/gitgud/test/gitgud/personal_access_token_test.exs`.
+
+## 12. AI coding-agent sessions (Entire checkpoints)
+
+Design + phased plan: `guides/Sessions and Checkpoints.md`. **Phases 0, 1, 2, 3 and 4 are
+done**; the retention/guard phase is not started.
+
+Phase 1 is the domain ingest layer, `GitGud.Checkpoints`
+(`apps/gitgud/lib/gitgud/checkpoints.ex`): `list/2`, `get/2`, `session/4`, `tasks/2`,
+`prompts/2`, `commit_ids/2`, `for_commit/2`, `invalidate/1`. It reads the checkpoint trees out of the
+repository's own object store via `GitGud.RepoPool`, and caches only the per-checkpoint
+summaries in `GitGud.MetaDB` under `{:checkpoints, owner_login, name}`, guarded by a
+reference-name/target-oid watermark (`MetaDB.get_raw/1` + `delete/1` were added for this;
+`get/1` coerces its value into a `MetaObject`, so it cannot hold an arbitrary document).
+`GitGud.Repo`'s `GitRekt.GitRepo.push/2` impl drops that cache when a push touches
+`refs/entire/`. Config: `config :gitgud, GitGud.Checkpoints, enabled:, legacy_branch:,
+max_transcript_bytes:`. Tests: `apps/gitgud/test/gitgud/checkpoints_test.exs`.
+
+Phase 2 is the UI, `GitGud.Web.CheckpointLive`
+(`apps/gitgud_web/lib/gitgud_web/live/checkpoint_live.ex` + `.html.heex`): the repository
+**Sessions** tab — `live "/sessions"` (`:sessions`: the list, newest first, with `?p=`
+pagination) and `live "/sessions/:id"` (`:session`: prompt, a 100-line transcript window
+via `?page=`, files touched, the subagent task table, and a compact diff against
+`metadata["commit_sha"]`). The route actions are `:sessions`/`:session` rather than
+`:index`/`:show` because `CodebaseView.title/2`'s first clause already guards on
+`action == :show`. `CommitHistoryLive` renders a chip per linked checkpoint from a single
+`Checkpoints.list/2` call in `mount/3`; `CommitDiffLive` uses `Checkpoints.commit_ids/2`;
+`repo_header/1` gained the tab. Tests:
+`apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs` (mounting `CommitDiffLive`
+under `Phoenix.LiveViewTest` raises *inside the harness* — `floki 0.33.1` dropped
+`Floki.get_by_id/2`, which `phoenix_live_view 0.20.12` still calls). The fixture lives in
+`apps/gitgud_web/test/support/checkpoint_factory.ex`, shared with Phase 3.
+
+Phase 3 is the APIs. GraphQL (`apps/gitgud_web/lib/gitgud/graphql/{types,resolvers}.ex`):
+`object :checkpoint` (+ `enum :checkpoint_source`, and a `scalar :json` — absinthe 1.7's
+`Absinthe.Type.Custom` has none), a `checkpoints` connection and `checkpoint(id:)` on
+`object :repo`, and a `checkpoints` connection on `object :git_commit` fed by
+`Checkpoints.for_commit/2`. Its `oid`/`commit_sha` are `String` on purpose: the domain
+yields 40-character hex while the `git_oid` scalar serializes with `Git.oid_fmt/1`, which
+wants the raw 20-byte form (and `oid_parse`'s `raise`-only stub makes Elixir 1.18 warn at
+any call site). There is no Relay `node`/`to_relay_id/2` — ids are ULIDs, and
+`Schema.from_relay_id/1` coerces with `String.to_integer/1`. The SDL regenerates on compile
+and is gitignored. MCP adds `list_checkpoints`, `get_checkpoint` (bounded: a transcript
+only for an explicitly requested `session`, capped by `max_bytes`) and
+`search_checkpoints` (prompt-only by default, capped at 100 checkpoints) — all
+`repo:read`, so `@tool_scopes` in `GitGud.MCP.Authorization` grew by three and the tool
+count in `apps/gitgud_web/test/gitgud/mcp/` is now **25** (26 after Phase 4). Tests:
+`apps/gitgud_web/test/gitgud/graphql/checkpoint_test.exs` (real documents through
+`Schema.run/2`, so `RepoMiddleware` is exercised — note `Schema.run/2` returns **atom**
+keys for `:data`/`:errors`, while nested field maps are string-keyed) and
+`apps/gitgud_web/test/gitgud/mcp/checkpoint_tools_test.exs`.
+
+Phase 4 is search & provenance, all of it answered from the `GitGud.MetaDB` index — no Git
+read, no transcript scan unless a caller explicitly asks. `Checkpoints.search/3` tokenises a
+query the way the index is built (lowercased `[a-z0-9]+` runs, stop words and one-character
+terms dropped, ≤16 terms per query), requires **every** term to hit a summary field (`id`,
+`branch`, `strategy`, `commit_sha`, `files_touched`) or an indexed session prompt, and returns
+`%{checkpoint:, matched: [label], score:}` — labels `"id"`/`"branch"`/`"strategy"`/
+`"commit_sha"`/`"files_touched"`/`"session <n> prompt"`, weights 3 for a prompt or touched
+file and 1 otherwise. The index document therefore grew a third key,
+`%{watermark, checkpoints, terms}`, where `terms` is `term => [{checkpoint id, session index}]`
+built from `<i>/prompt.txt` at the same time as the summaries; transcripts are never indexed.
+`Checkpoints.provenance/3` maps a path (exact, or a `path <> "/"` prefix for a directory)
+back to the checkpoints that touched it from `files_touched` alone. Surfaces: a `?q=` search
+form and per-row match labels on the Sessions tab (pagination carries `q`, and a public repo
+now renders the risk-1 exposure warning), the `search_checkpoints(query:)` /
+`checkpoint_provenance(path:)` connections plus `object :checkpoint_match` on GraphQL
+`object :repo`, and the MCP tools — `checkpoint_provenance` (the 26th, `repo:read`) and
+`search_checkpoints`, rewritten onto `search/3` (`include_transcripts: true` still does the
+bounded, opt-in scan of the 10 newest checkpoints). Risk 2 is closed: with `enabled: false`
+the checkpoint refs are now omitted from advertisement —
+`WireProtocol.reference_discovery/4` takes `hide_references:`, threaded as a `hide_references`
+field on `UploadPack`/`ReceivePack` and set from `Checkpoints.hidden_reference_prefixes/0` in
+both `GitGud.SSHServer` and `GitGud.SmartHTTPBackend`, so `:gitrekt` stays generic. Tests:
+`apps/gitgud/test/gitgud/checkpoints_test.exs` (search/provenance) and
+`apps/gitgud/test/gitgud/checkpoints_transport_test.exs` (the gate).
+
+Phase 5 is hardening. 5A deletion tolerance needed no code — the reference-name/target-oid
+watermark from Phase 1 already rebuilds when `entire clean` deletes a ref, and
+`GitRekt.GitRepo.push/2` drops the cache eagerly — so it is tests (`describe "retention"`) and
+docs. 5B added `Checkpoints.storage/1`, which walks every checkpoint tree summing **deduplicated**
+blob sizes under two caps (`@max_storage_checkpoints`, `@max_storage_objects`; a hit cap makes the
+number a documented lower bound, reported as `truncated?`), rendered as an **admin-only**
+*Checkpoint storage* panel (`format_bytes/1`) on the Sessions tab. 5C is a push-side guard:
+`:gitrekt` gained a generic `WireProtocol.valid_reference_name?/1` and a `reference_policy`
+callback on `ReceivePack` (mirroring the `hide_references` threading), called for every reference
+a push *writes* — deletes always pass — and emitting `ng <ref> <reason>` in place of `ok <ref>`;
+`:gitgud` supplies `Checkpoints.reference_policy/0`, which refuses the whole `refs/entire/*`
+namespace while `enabled: false` and any malformed name under it otherwise, at both transport call
+sites. 5D makes every read accept an unambiguous case-insensitive id **prefix**
+(≥ `@min_id_prefix_length` = 4) via `resolve_location/2`, returning `{:error, :ambiguous}` on a
+multiple match (the GraphQL resolver and the MCP `get_checkpoint` each map that to their own
+error). No retention pruner was built (the user declined one) and the control plane (§8 level B)
+stays deferred. Tests: the `retention` / `short id resolution` / `storage/1` blocks in
+`apps/gitgud/test/gitgud/checkpoints_test.exs`, `reference_policy/0` + `the push guard` in
+`checkpoints_transport_test.exs`, `valid_reference_name?/1` in `git_reference_test.exs`, and the
+storage-panel tests in `apps/gitgud_web/test/gitgud_web/live/checkpoint_live_test.exs` — `:gitgud`
+220 tests, `:gitgud_web` 197, both green.
+
+The [Entire CLI](https://github.com/entireio/cli) captures AI coding-agent
+sessions as **checkpoints** and pushes them to a git remote as ordinary refs —
+`refs/entire/checkpoints/<shard>/<id>`, each pointing at a commit whose tree root
+holds `metadata.json`, per-session `0/`, `1/`… directories (transcripts, prompts,
+token usage) and `tasks/`. The commit that condensed the work carries an
+`Entire-Checkpoint: <id>` trailer. There is no server API in that path: plain
+`git push`/`git fetch` *is* the transport, so gitfrank can host checkpoints with
+no control-plane work (the id-fronted HTTP API is only needed for `entire login`,
+`org`/`project`/`repo` and `entire://` clones — see §8 of the guide).
+
+Phase 0 made gitfrank safe for those refs:
+
+- Reference names outside `refs/heads/` and `refs/tags/` are now classified
+  `:other` — `GitRekt.GitAgent.resolve_reference_type/1`, the `GitRekt.GitRef`
+  type — and `fetch_reference_target/3` no longer raises on them. Previously a
+  repo carrying a `refs/entire/*` ref failed **every** subsequent `info/refs`
+  (`FunctionClauseError`), taking down clone, fetch and push together.
+- `:other` is plumbed through the GraphQL `git_reference_type` enum, the
+  `Phoenix.HTML.Safe` impl for `GitRef`, and the branch/tag picker
+  (`BranchSelectLive` filters to branches and tags).
+- Regression tests: `apps/gitgud/test/gitgud/git_reference_test.exs`.

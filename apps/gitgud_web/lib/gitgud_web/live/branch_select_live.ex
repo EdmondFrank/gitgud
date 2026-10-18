@@ -95,7 +95,7 @@ defmodule GitGud.Web.BranchSelectLive do
     assign(socket, head: head, refs: refs)
   end
 
-  defp resolve_tab(%GitRef{type: type}), do: type
+  defp resolve_tab(%GitRef{type: type}) when type in [:branch, :tag], do: type
   defp resolve_tab(%GitTag{}), do: :tag
   defp resolve_tab(_rev), do: :branch
 
@@ -111,9 +111,15 @@ defmodule GitGud.Web.BranchSelectLive do
   defp resolve_references(agent) do
     case GitAgent.references(agent, with: :commit, target: :commit) do
       {:ok, refs} ->
+        # The picker concerns branches and tags only; other reference namespaces
+        # (e.g. `refs/entire/checkpoints/*`) are surfaced elsewhere.
+        refs =
+          refs
+          |> Enum.to_list()
+          |> Enum.filter(fn {ref, _target} -> ref.type in [:branch, :tag] end)
+
         case GitAgent.head(agent) do
           {:ok, head} ->
-            refs = Enum.to_list(refs)
             head_index = Enum.find_index(refs, &elem(&1, 0) == head)
             {
               :ok,

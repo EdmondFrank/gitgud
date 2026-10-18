@@ -138,7 +138,7 @@ defmodule GitGud.MCP.PersonalAccessTokenAuthTest do
       conn = rpc("tools/list", %{}, 2, session_id, token)
 
       assert %{"result" => %{"tools" => tools}} = Jason.decode!(conn.resp_body)
-      assert length(tools) == 22
+      assert length(tools) == 26
     end
 
     test "tools/call outside the granted scopes fails with insufficient_scope", %{user: user} do

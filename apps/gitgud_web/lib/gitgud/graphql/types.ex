@@ -15,10 +15,25 @@ defmodule GitGud.GraphQL.Types do
     serialize &Git.oid_fmt/1
   end
 
+  @desc "The `JSON` scalar type represents arbitrary JSON data."
+  scalar :json, name: "JSON" do
+    parse &{:ok, &1.value}
+    serialize & &1
+  end
+
   @desc "The `GitReferenceType` enum represents the type of a Git reference."
   enum :git_reference_type do
     value :branch
     value :tag
+    value :other
+  end
+
+  @desc "The `CheckpointSource` enum represents where a checkpoint's tree is stored."
+  enum :checkpoint_source do
+    value :ref, description: "A dedicated `refs/entire/checkpoints/<shard>/<id>` reference."
+
+    value :branch,
+      description: "A directory of the legacy `entire/checkpoints/v1` branch."
   end
 
   connection node_type: :user
@@ -34,6 +49,8 @@ defmodule GitGud.GraphQL.Types do
   connection node_type: :comment
   connection node_type: :comment_revision
   connection node_type: :search_result
+  connection node_type: :checkpoint
+  connection node_type: :checkpoint_match
 
   interface :issue_event do
     @desc "The timestamp of the event."
@@ -196,6 +213,31 @@ defmodule GitGud.GraphQL.Types do
     field :revision, non_null(:git_commit) do
       arg :spec, non_null(:string), description: "The revision spec."
       resolve &Resolvers.repo_revision/3
+    end
+
+    @desc "A list of AI coding-agent checkpoints recorded in this repository."
+    connection field :checkpoints, node_type: :checkpoint do
+      resolve &Resolvers.repo_checkpoints/2
+    end
+
+    @desc "Fetches a single AI coding-agent checkpoint by its id."
+    field :checkpoint, :checkpoint do
+      arg :id, non_null(:string), description: "The checkpoint id."
+      resolve &Resolvers.repo_checkpoint/3
+    end
+
+    @desc "A list of AI coding-agent checkpoints matching a search query."
+    connection field :search_checkpoints, node_type: :checkpoint_match do
+      arg :query, non_null(:string), description: "The search text."
+
+      resolve &Resolvers.repo_checkpoint_search/2
+    end
+
+    @desc "A list of AI coding-agent checkpoints that touched a file (or a directory), newest first."
+    connection field :checkpoint_provenance, node_type: :checkpoint_match do
+      arg :path, non_null(:string), description: "A file path, or a directory."
+
+      resolve &Resolvers.repo_checkpoint_provenance/2
     end
 
     @desc "The HTTP URL for this repository."
@@ -390,8 +432,73 @@ defmodule GitGud.GraphQL.Types do
       resolve &Resolvers.commit_line_reviews/3
     end
 
+    @desc "The AI coding-agent checkpoints linked to this commit."
+    connection field :checkpoints, node_type: :checkpoint do
+      resolve &Resolvers.commit_checkpoints/2
+    end
+
     @desc "The HTTP URL for this commit."
     field :url, non_null(:string), resolve: &Resolvers.url/3
+  end
+
+  @desc "Represents an AI coding-agent checkpoint recorded by the Entire CLI."
+  object :checkpoint do
+    @desc "The checkpoint id (a 26-character ULID, or the legacy 12-character hex id)."
+    field :id, non_null(:string)
+
+    @desc "The 40-character object id of the commit the checkpoint reference points to."
+    field :oid, non_null(:string)
+
+    @desc "The reference the checkpoint was read from."
+    field :ref, non_null(:string)
+
+    @desc "Where the checkpoint's tree is stored."
+    field :source, non_null(:checkpoint_source)
+
+    @desc "The branch the checkpoint was recorded on."
+    field :branch, :string
+
+    @desc "The strategy the checkpoint was recorded with (eg. `manual-commit`)."
+    field :strategy, :string
+
+    @desc "The number of commits the checkpoint condensed."
+    field :checkpoints_count, :integer
+
+    @desc "The files the checkpoint touched."
+    field :files_touched, non_null(list_of(non_null(:string)))
+
+    @desc "The number of agent sessions recorded in the checkpoint."
+    field :session_count, non_null(:integer)
+
+    @desc "The raw session entries stored in the checkpoint's `metadata.json`."
+    field :sessions, non_null(list_of(non_null(:json)))
+
+    @desc "The token usage recorded for the checkpoint."
+    field :token_usage, :json
+
+    @desc "The 40-character object id of the commit the checkpoint is linked to, through its `Entire-Checkpoint:` trailer."
+    field :commit_sha, :string
+
+    @desc "The timestamp of the checkpoint commit."
+    field :committed_at, :datetime
+
+    @desc "The raw `metadata.json` of the checkpoint. Only resolved for a single checkpoint."
+    field :metadata, :json
+
+    @desc "The HTTP URL for this checkpoint."
+    field :url, non_null(:string), resolve: &Resolvers.checkpoint_url/3
+  end
+
+  @desc "Represents a checkpoint that matched a query."
+  object :checkpoint_match do
+    @desc "The matched checkpoint."
+    field :checkpoint, non_null(:checkpoint)
+
+    @desc "The fields that matched — `id`, `branch`, `strategy`, `commit_sha`, `files_touched` or `session <n> prompt`."
+    field :matched, non_null(list_of(non_null(:string)))
+
+    @desc "The match score: the matched fields, weighted."
+    field :score, non_null(:integer)
   end
 
   @desc "Represents a Git commit line review."

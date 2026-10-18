@@ -29,4 +29,11 @@ defmodule GitGud.GraphQL.ResolversTest do
     info = %Absinthe.Resolution{context: %{repo: %Repo{owner_login: "kanle", name: "gitfrank"}}}
     assert {:ok, ^url} = Resolvers.url(%GitCommit{oid: oid}, %{}, info)
   end
+
+  test "resolves an absolute URL for an AI coding-agent checkpoint" do
+    id = "01K9TQ8ZP7X3F5M2WVJ4CNRB6D"
+    url = GitGud.Web.Endpoint.url() <> "/kanle/gitfrank/sessions/#{id}"
+    info = %Absinthe.Resolution{context: %{repo: %Repo{owner_login: "kanle", name: "gitfrank"}}}
+    assert {:ok, ^url} = Resolvers.checkpoint_url(%{id: id}, %{}, info)
+  end
 end
