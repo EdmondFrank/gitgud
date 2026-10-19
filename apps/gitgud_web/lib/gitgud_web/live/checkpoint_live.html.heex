@@ -41,12 +41,14 @@
               <span class="tag is-small is-light"><%= agent %></span>
             <% end %>
             <%= if model = session_meta(@session, "model") do %>
-              <span class="tag is-small is-light is-family-monospace"><%= model %></span>
+              <span class="tag is-small is-light is-family-monospace">
+                <%= short_model(model) %>
+              </span>
             <% end %>
             <span class="transcript-source has-text-grey">
               <%= if @session.source == :compact,
                 do: "compacted transcript",
-                else: "raw agent transcript" %>
+                else: "full agent transcript" %>
             </span>
           </div>
           <div class="transcript-toolbar-actions">
@@ -74,6 +76,12 @@
                   <span class="transcript-time">
                     <%= datetime_format(message.at, "{relative}") %>
                   </span>
+                <% end %>
+                <%= if message.model do %>
+                  <span class="transcript-model"><%= short_model(message.model) %></span>
+                <% end %>
+                <%= if message.cost do %>
+                  <span class="transcript-cost"><%= format_cost(message.cost) %></span>
                 <% end %>
                 <%= if message.tokens do %>
                   <span class="transcript-tokens">
@@ -131,7 +139,7 @@
           </nav>
         <% end %>
         <p class="has-text-grey is-size-7">
-          Showing <%= length(@transcript_page.slice) %> of <%= length(@session.transcript) %> lines<%= if @session.truncated,
+          Showing <%= length(@transcript_page.slice) %> of <%= @transcript_count %> messages<%= if @session.truncated,
             do: " (truncated at #{@session.transcript_bytes} bytes)" %>.
         </p>
       <% else %>

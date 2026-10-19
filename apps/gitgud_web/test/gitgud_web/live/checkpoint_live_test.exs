@@ -102,7 +102,7 @@ defmodule GitGud.Web.CheckpointLiveTest do
     test "paginates the transcript", %{conn: conn, user: user, repo: repo} do
       {:ok, _view, html} = live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}")
 
-      assert html =~ "Showing 100 of 150 lines"
+      assert html =~ "Showing 100 of 150 messages"
       assert html =~ "line 4"
       assert html =~ "page=2"
       refute html =~ "line 101"
@@ -111,7 +111,7 @@ defmodule GitGud.Web.CheckpointLiveTest do
         live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}?page=2")
 
       assert html =~ "line 101"
-      assert html =~ "Showing 50 of 150 lines"
+      assert html =~ "Showing 50 of 150 messages"
     end
 
     test "links the checkpoint from the commit history", %{conn: conn, user: user, repo: repo} do
@@ -179,6 +179,40 @@ defmodule GitGud.Web.CheckpointLiveTest do
     end
   end
 
+  # An AiderDesk checkpoint: `full.jsonl` is a pretty-printed JSON *document*
+  # (no compact transcript), so the viewer has to decode it as one.
+  describe "with an AiderDesk checkpoint" do
+    setup :create_aiderdesk_checkpoint
+
+    test "renders the document transcript as messages, not raw lines", %{
+      conn: conn,
+      user: user,
+      repo: repo
+    } do
+      {:ok, _view, html} = live(conn, ~p"/#{user.login}/#{repo.name}/sessions/#{checkpoint_id()}")
+
+      assert html =~ CheckpointFactory.aiderdesk_prompt()
+      assert html =~ CheckpointFactory.aiderdesk_reply()
+      assert html =~ "transcript-message--user"
+      assert html =~ "transcript-message--assistant"
+
+      # The reasoning is a collapsed disclosure; the tool call carries both its
+      # input and the result folded in from a separate message.
+      assert html =~ CheckpointFactory.aiderdesk_reasoning()
+      assert html =~ CheckpointFactory.aiderdesk_tool()
+      assert html =~ CheckpointFactory.aiderdesk_output()
+
+      # Per-message usage from `usageReport`.
+      assert html =~ "deepseek-v4.1-flash"
+      assert html =~ "$0.00086"
+
+      # Four document entries, one of them a folded-in tool result: three
+      # messages — not one raw card per line — and nothing left raw.
+      assert html =~ "Showing 3 of 3 messages"
+      refute html =~ "transcript-message--raw"
+    end
+  end
+
   #
   # Helpers
   #
@@ -213,6 +247,13 @@ defmodule GitGud.Web.CheckpointLiveTest do
 
   defp create_checkpoint(%{repo: repo} = context) do
     %{main_sha: main_sha} = CheckpointFactory.write!(repo)
+
+    Map.put(context, :main_sha, main_sha)
+  end
+
+  defp create_aiderdesk_checkpoint(%{repo: repo} = context) do
+    %{main_sha: main_sha} =
+      CheckpointFactory.write!(repo, transcript: :aiderdesk, files_touched: ["aiderdesk.txt"])
 
     Map.put(context, :main_sha, main_sha)
   end

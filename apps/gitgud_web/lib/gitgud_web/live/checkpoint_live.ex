@@ -47,6 +47,7 @@ defmodule GitGud.Web.CheckpointLive do
         session_index: 0,
         session: nil,
         transcript_page: nil,
+        transcript_count: 0,
         messages: [],
         show_tools: true,
         hidden_tools: 0,
@@ -216,20 +217,26 @@ defmodule GitGud.Web.CheckpointLive do
           nil
       end
 
-    transcript_page =
-      if session, do: paginate(session.transcript, page, @transcript_page_size), else: nil
+    # The whole transcript is normalised to messages first: a document transcript
+    # (AiderDesk) is only decodable as a whole, so pagination has to count
+    # messages, not raw lines.
+    messages = if session, do: CheckpointTranscript.transcript(session.transcript), else: []
 
-    messages =
-      if transcript_page, do: CheckpointTranscript.messages(transcript_page.slice), else: []
+    transcript_page = if session, do: paginate(messages, page, @transcript_page_size), else: nil
+    page_messages = if transcript_page, do: transcript_page.slice, else: []
 
-    hidden_tools = if show_tools?, do: 0, else: Enum.sum(Enum.map(messages, &length(&1.tools)))
-    messages = if show_tools?, do: messages, else: Enum.map(messages, &%{&1 | tools: []})
+    hidden_tools =
+      if show_tools?, do: 0, else: Enum.sum(Enum.map(page_messages, &length(&1.tools)))
+
+    page_messages =
+      if show_tools?, do: page_messages, else: Enum.map(page_messages, &%{&1 | tools: []})
 
     assign(socket,
       session_index: index,
       session: session,
       transcript_page: transcript_page,
-      messages: messages,
+      transcript_count: length(messages),
+      messages: page_messages,
       show_tools: show_tools?,
       hidden_tools: hidden_tools
     )
@@ -339,20 +346,53 @@ defmodule GitGud.Web.CheckpointLive do
     |> URI.encode_query()
   end
 
-  # A one-line preview of a tool call's input, shown on the collapsed row.
+  # A one-line preview of a tool call's input, shown on the collapsed row. The
+  # input is pretty-printed JSON, so its first line is usually just `{`; summarise
+  # the most telling field instead.
+  @hint_keys ~w(filePath file_path path command cmd query url pattern code content)
+
   defp tool_hint(nil), do: nil
 
   defp tool_hint(input) when is_binary(input) do
-    case input |> String.split("\n", trim: true) |> List.first() do
-      nil -> nil
-      line -> String.slice(line, 0, 96)
+    case Jason.decode(input) do
+      {:ok, map} when is_map(map) and map_size(map) > 0 ->
+        key = Enum.find(@hint_keys, &Map.has_key?(map, &1)) || map |> Map.keys() |> List.first()
+        clip("#{key}: #{inline(map[key])}")
+
+      {:ok, list} when is_list(list) ->
+        "#{length(list)} items"
+
+      _other ->
+        clip(collapse(input))
     end
   end
 
+  defp inline(value) when is_binary(value), do: collapse(value)
+  defp inline(value), do: value |> Jason.encode!() |> collapse()
+
+  defp collapse(text), do: text |> String.replace(~r/\s+/, " ") |> String.trim()
+
+  defp clip(text), do: String.slice(text, 0, 96)
+
   # A field of the session's own `metadata.json` (`agent`, `model`, …), which is
-  # absent for a session that recorded none.
-  defp session_meta(%{metadata: metadata}, key) when is_map(metadata), do: metadata[key]
+  # absent for a session that recorded none. The CLI writes an empty string for a
+  # value it did not record, so that counts as absent too.
+  defp session_meta(%{metadata: metadata}, key) when is_map(metadata) do
+    case metadata[key] do
+      value when value in [nil, ""] -> nil
+      value -> value
+    end
+  end
+
   defp session_meta(_session, _key), do: nil
+
+  # A model is routed as `<provider>/<model>`; the tail identifies it.
+  defp short_model(model), do: model |> String.split("/") |> List.last()
+
+  defp format_cost(cost) when is_float(cost),
+    do: "$" <> :erlang.float_to_binary(cost, decimals: 5)
+
+  defp format_cost(cost), do: "$#{cost}"
 
   defp commit_path(repo, sha), do: ~p"/#{repo.owner_login}/#{repo.name}/commit/#{sha}"
 

@@ -32,6 +32,15 @@ defmodule GitGud.Web.CheckpointFactory do
   @timestamp "2026-01-02T03:04:05.000Z"
   @transcript_lines 150
 
+  # A second, real-world shape: an AiderDesk capture, whose `full.jsonl` is a
+  # pretty-printed document rather than JSON Lines (see `aiderdesk_transcript/0`).
+  @aiderdesk_prompt "Add aiderdesk.txt to the repository."
+  @aiderdesk_reasoning "The user wants a new file. Let me write it."
+  @aiderdesk_reply "Done — wrote aiderdesk.txt."
+  @aiderdesk_tool "mcp-hub---code_mode"
+  @aiderdesk_call_id "call_094dd457d58149868ea932be"
+  @aiderdesk_output "Wrote aiderdesk.txt."
+
   def checkpoint_id, do: @checkpoint_id
   def checkpoint_ref, do: @checkpoint_ref
   def prompt, do: @prompt
@@ -44,7 +53,9 @@ defmodule GitGud.Web.CheckpointFactory do
 
   Returns `%{main_sha: hex, checkpoint_oid: oid}` — the commit carrying the
   trailer and the checkpoint commit the reference points at. `files_touched:`
-  overrides the files the checkpoint records as having touched.
+  overrides the files the checkpoint records as having touched; `transcript:
+  :aiderdesk` writes the AiderDesk document shape (no compact transcript) rather
+  than the JSON-Lines one.
   """
   @spec write!(GitGud.Repo.t(), keyword) :: %{main_sha: binary, checkpoint_oid: binary}
   def write!(repo, opts \\ []) do
@@ -63,7 +74,7 @@ defmodule GitGud.Web.CheckpointFactory do
     checkpoint_oid =
       commit!(
         agent,
-        checkpoint_files(Keyword.get(opts, :files_touched, @files_touched)),
+        checkpoint_files(Keyword.get(opts, :files_touched, @files_touched), opts),
         "Checkpoint #{@checkpoint_id}\n",
         []
       )
@@ -79,8 +90,10 @@ defmodule GitGud.Web.CheckpointFactory do
   The sessions recorded in the root `metadata.json` are the pointer entries the
   CLI writes; `0/` holds the session itself.
   """
-  @spec checkpoint_files([binary]) :: %{binary => binary}
-  def checkpoint_files(files_touched \\ @files_touched) do
+  @spec checkpoint_files([binary], keyword) :: %{binary => binary}
+  def checkpoint_files(files_touched \\ @files_touched, opts \\ []) do
+    transcript = Keyword.get(opts, :transcript, :json_lines)
+
     %{
       "metadata.json" =>
         Jason.encode!(%{
@@ -93,14 +106,7 @@ defmodule GitGud.Web.CheckpointFactory do
           # is the `Entire-Checkpoint:` trailer `write!/2` puts in it, so a
           # checkpoint's `commit_sha` has to be resolved from that trailer.
           "files_touched" => files_touched,
-          "sessions" => [
-            %{
-              "metadata" => "/0/metadata.json",
-              "transcript" => "/0/full.jsonl",
-              "compact_transcript" => "/0/transcript.jsonl",
-              "prompt" => "/0/prompt.txt"
-            }
-          ],
+          "sessions" => [session_pointer(transcript)],
           "token_usage" => %{"input_tokens" => 158, "output_tokens" => 54}
         }),
       "0/metadata.json" =>
@@ -109,13 +115,125 @@ defmodule GitGud.Web.CheckpointFactory do
           "agent" => "opencode",
           "model" => "kimi-k2.5"
         }),
-      "0/prompt.txt" => @prompt <> "\n",
-      "0/full.jsonl" => full_transcript(),
-      "0/transcript.jsonl" => compact_transcript(),
       "tasks/task-1/task.json" =>
         Jason.encode!(%{"description" => "Add a greeting", "status" => "completed"})
     }
+    |> Map.merge(transcript_files(transcript))
   end
+
+  # The sessions entry in the root `metadata.json` points at the transcripts; the
+  # AiderDesk-shaped capture records no compact transcript at all.
+  defp session_pointer(:aiderdesk) do
+    %{
+      "metadata" => "/0/metadata.json",
+      "transcript" => "/0/full.jsonl",
+      "prompt" => "/0/prompt.txt"
+    }
+  end
+
+  defp session_pointer(_transcript) do
+    %{
+      "metadata" => "/0/metadata.json",
+      "transcript" => "/0/full.jsonl",
+      "compact_transcript" => "/0/transcript.jsonl",
+      "prompt" => "/0/prompt.txt"
+    }
+  end
+
+  defp transcript_files(:aiderdesk) do
+    %{
+      "0/prompt.txt" => @aiderdesk_prompt <> "\n",
+      "0/full.jsonl" => aiderdesk_transcript()
+    }
+  end
+
+  defp transcript_files(_transcript) do
+    %{
+      "0/prompt.txt" => @prompt <> "\n",
+      "0/full.jsonl" => full_transcript(),
+      "0/transcript.jsonl" => compact_transcript()
+    }
+  end
+
+  @doc """
+  The AiderDesk `0/full.jsonl` — a *pretty-printed JSON document*
+  (`{"version":2,"contextMessages":[…]}`), not JSON Lines, mirroring a real
+  AiderDesk capture the CLI pushed: no compact transcript, `reasoning` /
+  `text` / `tool-call` parts, tool *results* as separate `role:"tool"` entries,
+  epoch-millisecond timestamps and a per-message `usageReport`.
+  """
+  @spec aiderdesk_transcript :: binary
+  def aiderdesk_transcript do
+    Jason.encode!(
+      %{
+        "version" => 2,
+        "contextMessages" => [
+          %{
+            "id" => "d7ad548e-505d-470e-9881-ff2dff2902ce",
+            "role" => "user",
+            "content" => @aiderdesk_prompt,
+            "timestamp" => 1_792_378_904_594
+          },
+          %{
+            "id" => "2a82eddd-7bd0-42b2-8287-babc63e50f53",
+            "role" => "assistant",
+            "content" => [
+              %{"type" => "reasoning", "text" => @aiderdesk_reasoning},
+              %{
+                "type" => "tool-call",
+                "toolCallId" => @aiderdesk_call_id,
+                "toolName" => @aiderdesk_tool,
+                "input" => %{"code" => "return desktop.write_file({path: \"aiderdesk.txt\"})"}
+              }
+            ],
+            "usageReport" => %{
+              "model" => "openai-compatible/deepseek-v4.1-flash",
+              "sentTokens" => 489,
+              "receivedTokens" => 484,
+              "messageCost" => 0.00086062
+            },
+            "timestamp" => 1_792_378_909_910
+          },
+          %{
+            "id" => "fa9f47aa-c96b-4ab8-bdb9-57b58515a016",
+            "role" => "tool",
+            "content" => [
+              %{
+                "type" => "tool-result",
+                "toolCallId" => @aiderdesk_call_id,
+                "toolName" => @aiderdesk_tool,
+                "output" => %{
+                  "type" => "content",
+                  "value" => [%{"type" => "text", "text" => @aiderdesk_output}]
+                }
+              }
+            ],
+            "timestamp" => 1_792_378_909_910
+          },
+          %{
+            "id" => "42bb863c-98b6-4acb-85b8-d62c9791fbda",
+            "role" => "assistant",
+            "content" => [%{"type" => "text", "text" => @aiderdesk_reply}],
+            "usageReport" => %{
+              "model" => "openai-compatible/deepseek-v4.1-flash",
+              "sentTokens" => 120,
+              "receivedTokens" => 36,
+              "messageCost" => 0.00012345
+            },
+            "timestamp" => 1_792_378_915_000
+          }
+        ],
+        "contextFiles" => []
+      },
+      pretty: true
+    )
+  end
+
+  def aiderdesk_prompt, do: @aiderdesk_prompt
+  def aiderdesk_reasoning, do: @aiderdesk_reasoning
+  def aiderdesk_tool, do: @aiderdesk_tool
+  def aiderdesk_output, do: @aiderdesk_output
+  def aiderdesk_reply, do: @aiderdesk_reply
 
   @doc """
   The agent-native `0/full.jsonl` — one JSON object per line, one per message.

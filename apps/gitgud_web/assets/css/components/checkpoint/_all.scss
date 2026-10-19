@@ -43,6 +43,15 @@
   &--system {
     border-left-color: $grey-light;
   }
+
+  &--tool {
+    border-left-color: $warning;
+  }
+
+  &--raw {
+    border-left-color: $grey-light;
+    background-color: $white;
+  }
 }
 
 .transcript-message-header {
@@ -61,7 +70,7 @@
 
   .transcript-time {
     font-size: $size-7;
-    color: $grey;
+    color: $grey-dark;
   }
 
   .transcript-tokens {
@@ -80,6 +89,18 @@
 .transcript-message--assistant .transcript-role {
   background-color: $primary;
   color: $white;
+}
+
+.transcript-message--tool .transcript-role {
+  background-color: $warning;
+  color: $grey-darker;
+}
+
+.transcript-model,
+.transcript-cost {
+  font-family: $family-monospace;
+  font-size: $size-7;
+  color: $grey-dark;
 }
 
 .transcript-text {
@@ -166,7 +187,7 @@
   > summary {
     cursor: pointer;
     font-size: $size-7;
-    color: $grey;
+    color: $grey-dark;
   }
 }
 

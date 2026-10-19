@@ -396,6 +396,25 @@ delivers the trailer invalidates it while a push of a checkpoint reference does 
 two sibling negative-end ranges the explicit `//1` form), clearing the Elixir 1.18 negative-step
 deprecation. `:gitgud` 225 tests, `:gitgud_web` 209, both green.
 
+Phase 7 made the viewer handle **AiderDesk** captures, which write no compact transcript:
+`0/full.jsonl` is a pretty-printed JSON *document* (`{"version":2,"contextMessages":[…]}`) whose
+assistant entries carry `reasoning`/`text`/`tool-call` parts and whose tool *results* arrive as
+separate `role:"tool"` entries, with epoch-millisecond `timestamp` and a per-message `usageReport`.
+`GitGud.Web.CheckpointTranscript.transcript/1` (new; `messages/1` now delegates to it) joins the
+lines and decodes a whole-document transcript — `contextMessages`, `messages`, a bare message or a
+list of them — keeping the per-line path otherwise; a document *fragment* in which no line is
+itself a JSON object (say one truncated past `:max_bytes`) renders as a **single** `:raw` block
+instead of one card per line. It recognises the AiderDesk parts, reads epoch-ms stamps and
+`usageReport` (`sentTokens`/`receivedTokens`/`model`/`messageCost`) alongside the compact envelope,
+and folds each tool result into the call it answers (`toolCallId`, or Claude Code's `tool_use_id`)
+so a call renders once with its input *and* output — the message map gained `call_id`/`model`/
+`cost`. `CheckpointLive` now paginates **messages**, not raw lines (a document is only decodable as
+a whole), the message header shows model/cost, an empty `"model": ""` counts as absent, and a
+`:full` read is labelled *full agent transcript* rather than *raw*. `CheckpointFactory.write!/2`
+takes `transcript: :aiderdesk`; verified against the real capture (740 lines → 15 messages, 0 raw).
+`:gitgud` 225 tests, `:gitgud_web` 213, both green. Details: `guides/Sessions and Checkpoints.md`
+§6 Phase 7.
+
 The [Entire CLI](https://github.com/entireio/cli) captures AI coding-agent
 sessions as **checkpoints** and pushes them to a git remote as ordinary refs —
 `refs/entire/checkpoints/<shard>/<id>`, each pointing at a commit whose tree root

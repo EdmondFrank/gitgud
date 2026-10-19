@@ -17,8 +17,9 @@ connection and a `checkpoint_provenance` connection on GraphQL `repo`, and the
 heal the index on their own, an admin-only storage report sits on the Sessions tab, a push-side
 guard keeps the `refs/entire/*` namespace well-formed, and every read accepts an unambiguous
 short id; and Phase 6 made the checkpoint detail actually readable — the transcript is now read
-from the CLI's normalised file and rendered as messages, tool calls and all (§6, Phase 6) —
-leaving only the optional control plane (§8 level B) undone.
+from the CLI's normalised file and rendered as messages, tool calls and all (§6, Phase 6); and
+Phase 7 extended the renderer to agent-native *document* transcripts (AiderDesk), which carry no
+compact form at all (§6, Phase 7) — leaving only the optional control plane (§8 level B) undone.
 Owner: gitfrank maintainers
 External reference: the [Entire CLI](https://github.com/entireio/cli) (`entire.io`) and its
 docs under `docs/architecture/` (`sessions-and-checkpoints.md`, `ref-checkpoint-backend.md`,
@@ -237,7 +238,7 @@ Postgres; `GitGud.MetaDB` holds only a droppable cache.
 | `enabled?/0` | `config :gitgud, GitGud.Checkpoints, enabled:` gate. While off, the *browse* reads (`list/2`/`refresh/2`, `search/3`, `provenance/3`, `storage/1`) return nothing and `hidden_reference_prefixes/0` hides the namespace, while the *single-checkpoint* reads (`get/2`, `session/4`, `tasks/2`, `prompts/2`, `commit_ids/2`, `for_commit/2`) are deliberately **not** gated &mdash; a direct read still resolves one out of the object store, but the push guard refuses new writes (Phase 5, 5C). |
 | `list/2`, `refresh/2` | summarised checkpoints, newest first. `refresh/2` is `list(repo, cache: false)`. |
 | `get/2` | one checkpoint's summary plus its raw root `metadata.json` under `:metadata`. |
-| `session/4` | `<index>/metadata.json`, `prompt.txt`, and `full.jsonl` — falling back to `transcript.jsonl` — as a list of raw JSON Lines. |
+| `session/4` | `<index>/metadata.json`, `prompt.txt`, and `full.jsonl` — falling back to `transcript.jsonl` — as a list of raw lines (JSON Lines, *or* the lines of one pretty-printed JSON document; see Phase 7). |
 | `tasks/2` | `tasks/*/task.json`, each as `%{id, path, data}`. |
 | `prompts/2` | the numeric `<index>/prompt.txt` of every session (`%{index, prompt}`, prompt `nil` when absent) without reading a transcript — added in Phase 3 for `search_checkpoints`. |
 | `commit_ids/2` | the `Entire-Checkpoint:` trailers of a commit message; a merge commit yields none. |
@@ -293,10 +294,10 @@ because `CodebaseView.title/2`'s first clause already guards on `action == :show
   count, token usage. Offset pagination (`?p=`, 20/page) over the in-memory list, which is
   cheap because the index is MetaDB-cached.
 - **Detail** (`:session`): prompt (`markdown_safe/1`), a session selector (`?session=`) when the
-  checkpoint has more than one, the transcript as a **100-line window** (`?page=`) over the lines
-  `Checkpoints.session/4` returns, rendered as messages by `GitGud.Web.CheckpointTranscript`
-  (Phase 6) with the message count and `truncated?` flag shown — a whole transcript is never
-  materialised, in the LiveView or the index; files touched; the
+  checkpoint has more than one, the transcript as a **100-message window** (`?page=`) over the
+  lines `Checkpoints.session/4` returns, normalised to messages by `GitGud.Web.CheckpointTranscript`
+  (Phase 6, extended in Phase 7) with the message count and `truncated?` flag shown — a whole
+  transcript is never materialised, in the LiveView or the index; files touched; the
   subagent task table; and a **compact diff** against the linked commit (`metadata["commit_sha"]`),
   resolving the commit and its first parent in one `GitAgent.transaction` and rendering changed
   files with `+`/`-` counts plus a link to the full commit page. `CommitDiffLive`'s hunk renderer
@@ -524,6 +525,58 @@ exposes `full_transcript/0`, `compact_transcript/0`, `prompt/0`, `reply/0`, `too
 `transcript_lines/0`. `checkpoint_live_test.exs` asserts the rendered messages and the tool toggle,
 and its transcript pagination now starts at message 4. Suites: `:gitgud` 220 tests, `:gitgud_web`
 209, both green.
+
+### Phase 7 — AiderDesk document transcripts ✅ done
+
+A real capture from **AiderDesk** (`edmondfrank/entire-aiderdesk`, checkpoint `01M591SX…`)
+exposed a shape Phase 6 did not cover. The CLI wrote **no compact transcript** (the session tree
+is only `metadata.json`, `content_hash.txt`, `full.jsonl`, `prompt.txt`), so `:compact` fell back
+to `:full` — and AiderDesk's `full.jsonl` is, like OpenCode's, a **pretty-printed JSON document**
+rather than JSON Lines:
+
+```json
+{"version": 2, "contextMessages": [ … ], "contextFiles": [ … ]}
+```
+
+Each entry is a message: `role:"user"` with a string `content`; `role:"assistant"` whose `content`
+is a list of `reasoning` / `text` / `tool-call` parts; and a separate `role:"tool"` entry per
+result (`tool-result`, matched to its call by `toolCallId`). Timestamps are epoch **milliseconds**
+and token use / model / cost live in a per-message `usageReport`.
+
+Because the whole file decodes as one document, `CheckpointTranscript` had turned every one of its
+740 lines into a separate `:raw` card. Two things change:
+
+- **`transcript/1`** (new; `messages/1` now delegates to it) joins the lines and, if they decode
+  as a single JSON document — `contextMessages`, `messages`, a bare message or a list of them —
+  builds messages from its entries; otherwise it keeps the per-line behaviour. A transcript that
+  decodes as *neither* and in which no line is even a JSON object (a document fragment, say one
+  truncated past `:max_bytes`) renders as a **single** `:raw` block instead of one card per line.
+- The **AiderDesk parts** are recognised: `reasoning` → thinking, `tool-call` → a tool call, and
+  `tool-result` → the result, whose `output.value[].text` is joined. Epoch-ms timestamps and
+  `usageReport` (`sentTokens`/`receivedTokens`, `model`, `messageCost`) are read alongside the
+  compact envelope's ISO `ts` and `input_tokens`/`output_tokens`. Each tool result is then
+  **folded into the call it answers** (`toolCallId`, or a Claude Code `tool_use_id`) and the
+  standalone result message dropped, so a call renders once with its input *and* output — the
+  message map gained `call_id`, `model` and `cost` for this.
+
+**UI.** The detail view still paginates, but by **messages**, not raw lines (a document is only
+decodable as a whole) — "Showing *n* of *m* messages" — and the message header gained a `model`
+and `cost` chip; `session_meta/2` now treats the CLI's empty-string `"model": ""` as absent, and
+the `:full` source is labelled *full agent transcript* rather than *raw*. `:tool` messages (an
+unmatched result) get their own border/label colour in `checkpoint/_all.scss`.
+
+A live run against the capture also caught a defect the AiderDesk shape made obvious: the
+collapsed tool row's **hint** was the input's first line, and a pretty-printed input's first line
+is just `{` — so every row read `mcp-hub---code_mode {` with a blank box. `tool_hint/1` now
+decodes the input and summarises its most telling field (`code: …`, `filePath: …`, `initial_user_prompt: …`,
+`items: …`), falling back to the collapsed text for a non-JSON input.
+
+**Fixture & tests.** `CheckpointFactory.write!/2` takes `transcript: :aiderdesk`, which writes the
+document shape and no compact transcript (exposing `aiderdesk_transcript/0` and friends).
+`checkpoint_transcript_test.exs` decodes a document, a separate-result fold and a fragment; a new
+`checkpoint_live_test.exs` case asserts the whole capture renders as three messages with nothing
+left raw. Verified against the real `~/Code/entire-aiderdesk` file (740 lines → 15 messages, 0
+raw). Suites: `:gitgud` 225 tests, `:gitgud_web` 213, both green.
 
 ## 7. Risks and open questions
 

@@ -130,6 +130,116 @@ defmodule GitGud.Web.CheckpointTranscriptTest do
     end
   end
 
+  describe "transcript/1" do
+    test "decodes an AiderDesk document transcript" do
+      # A truly pretty-printed document — one JSON object, many lines — is what
+      # AiderDesk writes to `full.jsonl`, and what the CLI hands us line by line.
+      document =
+        Jason.encode!(
+          %{
+            "version" => 2,
+            "contextMessages" => [
+              %{
+                "id" => "u1",
+                "role" => "user",
+                "content" => "Commit the staged diff.",
+                "timestamp" => 1_792_378_904_594
+              },
+              %{
+                "id" => "a1",
+                "role" => "assistant",
+                "content" => [
+                  %{"type" => "reasoning", "text" => "Let me look at the diff."},
+                  %{
+                    "type" => "tool-call",
+                    "toolCallId" => "call_1",
+                    "toolName" => "code_mode",
+                    "input" => %{"code" => "return git.diff()"}
+                  }
+                ],
+                "usageReport" => %{
+                  "model" => "openai-compatible/deepseek-v4.1-flash",
+                  "sentTokens" => 489,
+                  "receivedTokens" => 484,
+                  "messageCost" => 0.00086062
+                },
+                "timestamp" => 1_792_378_909_910
+              },
+              %{
+                "id" => "t1",
+                "role" => "tool",
+                "content" => [
+                  %{
+                    "type" => "tool-result",
+                    "toolCallId" => "call_1",
+                    "toolName" => "code_mode",
+                    "output" => %{
+                      "type" => "content",
+                      "value" => [%{"type" => "text", "text" => "exit_code: 0"}]
+                    }
+                  }
+                ],
+                "timestamp" => 1_792_378_909_910
+              },
+              %{
+                "id" => "a2",
+                "role" => "assistant",
+                "content" => [%{"type" => "text", "text" => "Committed as `853562c`."}]
+              }
+            ],
+            "contextFiles" => []
+          },
+          pretty: true
+        )
+
+      assert [user, assistant, reply] = CheckpointTranscript.transcript(lines(document))
+
+      assert %{role: :user, text: ["Commit the staged diff."]} = user
+      assert %DateTime{} = user.at
+
+      assert assistant.role == :assistant
+      assert assistant.thinking == ["Let me look at the diff."]
+      assert [tool] = assistant.tools
+      assert tool.name == "code_mode"
+      assert tool.input =~ "return git.diff()"
+      # The separate `role:"tool"` entry is folded into the call it answers.
+      assert tool.output == "exit_code: 0"
+      assert assistant.tokens == %{input: 489, output: 484}
+      assert assistant.model == "openai-compatible/deepseek-v4.1-flash"
+      assert assistant.cost == 0.00086062
+
+      assert reply.role == :assistant
+      assert reply.text == ["Committed as `853562c`."]
+    end
+
+    test "folds a separate result line into its call" do
+      lines = [
+        ~s({"type":"assistant","message":{"role":"assistant",) <>
+          ~s("content":[{"type":"tool_use","id":"call_1","name":"Bash","input":{"command":"ls"}}]}}),
+        ~s({"type":"user","message":{"role":"user",) <>
+          ~s("content":[{"type":"tool_result","tool_use_id":"call_1","content":"README.md"}]}})
+      ]
+
+      assert [message] = CheckpointTranscript.transcript(lines)
+      assert message.role == :assistant
+      assert [tool] = message.tools
+      assert tool.name == "Bash"
+      assert tool.output == "README.md"
+    end
+
+    test "renders a document fragment that will not decode as a single raw block" do
+      document =
+        Jason.encode!(%{"version" => 2, "contextMessages" => []}, pretty: true)
+
+      # The first lines of a pretty-printed document, as a truncation would leave
+      # them: no single line is a JSON object of its own.
+      fragment = document |> String.split("\n") |> Enum.take(3)
+
+      assert [%{role: :raw} = message] = CheckpointTranscript.transcript(fragment)
+      assert message.raw == Enum.join(fragment, "\n")
+    end
+  end
+
   describe "label/1" do
     test "names a message's role" do
       assert CheckpointTranscript.label(%{role: :user}) == "user"
@@ -137,5 +247,14 @@ defmodule GitGud.Web.CheckpointTranscriptTest do
       assert CheckpointTranscript.label(%{role: :raw}) == "raw"
       assert CheckpointTranscript.label(%{role: :other}) == "entry"
     end
+  end
+
+  #
+  # Helpers
+  #
+
+  # Split a document into lines the way `GitGud.Checkpoints` hands them to us.
+  defp lines(document) do
+    document |> String.split("\n") |> Enum.reject(&(&1 == ""))
   end
 end
