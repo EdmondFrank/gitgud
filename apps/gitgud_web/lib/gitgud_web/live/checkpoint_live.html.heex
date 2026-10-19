@@ -149,45 +149,58 @@
       <h2 class="subtitle">Changes</h2>
       <%= cond do %>
         <% @diff -> %>
-          <p class="button is-white is-fullwidth">
-            <span>
-              <%= @diff.stats.files_changed %> file<%= if @diff.stats.files_changed > 1 do %>
-                s
-              <% end %>
-              changed,
-              <strong class="has-text-success is-family-monospace">
-                +<%= @diff.stats.insertions %>
-              </strong>
-              <strong class="has-text-danger is-family-monospace">
-                -<%= @diff.stats.deletions %>
-              </strong>
-            </span>
-          </p>
-          <table class="table is-fullwidth commit-stats-table">
-            <tbody>
-              <%= for delta <- @diff.deltas do %>
-                <% {adds, dels} = delta_stats(delta) %>
-                <tr>
-                  <td>
-                    <%= live_redirect to: blob_path(@repo, @diff.oid, Path.split(delta.new_file.path)) do %>
-                      <span class="icon"><i class="fa fa-file"></i></span>
-                      <%= delta.new_file.path %>
-                    <% end %>
-                  </td>
-                  <td class="has-text-right">
-                    <span class="has-text-success is-family-monospace">+<%= adds %></span>
-                    <span class="has-text-danger is-family-monospace">-<%= dels %></span>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-          <p>
-            <%= live_redirect("View full commit",
-              to: commit_path(@repo, @diff.oid),
-              class: "button is-small"
-            ) %>
-          </p>
+          <div class="checkpoint-changes">
+            <div class="columns commit-stats">
+              <div class="column is-full">
+                <p class="button is-white">
+                  <span>
+                    Showing
+                    <strong class="has-text-dark is-family-monospace">
+                      <%= @diff.stats.files_changed %> file<%= if @diff.stats.files_changed != 1 do %>
+                        s
+                      <% end %>
+                    </strong>
+                    with
+                    <strong class="has-text-success is-family-monospace">
+                      <%= @diff.stats.insertions %> addition<%= if @diff.stats.insertions != 1 do %>
+                        s
+                      <% end %>
+                    </strong>
+                    and <strong class="has-text-danger is-family-monospace">
+                      <%= @diff.stats.deletions %> deletion<%= if @diff.stats.deletions != 1 do %>s<% end %>
+                    </strong>.
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <table class="table is-fullwidth checkpoint-changes-table">
+              <tbody>
+                <%= for delta <- @diff.deltas do %>
+                  <% {adds, dels} = delta_stats(delta) %>
+                  <tr>
+                    <td>
+                      <%= live_redirect to: blob_path(@repo, @diff.oid, Path.split(delta.new_file.path)) do %>
+                        <span class="icon"><i class="fa fa-file"></i></span>
+                        <span class="is-family-monospace"><%= delta.new_file.path %></span>
+                      <% end %>
+                    </td>
+                    <td class="has-text-right">
+                      <span class="has-text-success is-family-monospace">+<%= adds %></span>
+                      <span class="has-text-danger is-family-monospace">-<%= dels %></span>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+
+            <div class="buttons is-right">
+              <%= live_redirect("View full commit",
+                to: commit_path(@repo, @diff.oid),
+                class: "button is-small is-link is-light"
+              ) %>
+            </div>
+          </div>
         <% @checkpoint.commit_sha -> %>
           <p class="has-text-grey">
             The linked commit

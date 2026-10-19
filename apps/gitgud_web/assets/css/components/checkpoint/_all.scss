@@ -200,3 +200,22 @@
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+
+// The checkpoint "Changes" section: a stat bar over the files the linked commit
+// touched. It mirrors `commit_diff_live`, but uses its own table class so it does
+// not depend on that page's `commit-stats-table` negative-margin hack.
+.checkpoint-changes {
+  margin-bottom: 1.5rem;
+
+  .checkpoint-changes-table {
+    margin-bottom: 0.75rem;
+
+    td {
+      vertical-align: middle;
+    }
+
+    .icon {
+      color: $grey;
+    }
+  }
+}
